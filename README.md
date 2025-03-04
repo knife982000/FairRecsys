@@ -17,3 +17,9 @@ pip install -r .\requirements.txt
 ```bash
 cd RecBole | pip install -e . --verbose
 ```
+
+### 4. Install Recbole-Debias
+
+```bash
+cd RecBole-Debias | pip install -e . --verbose
+```
