@@ -5,6 +5,7 @@ from typing import Optional, Any, Dict, List
 
 from RecBole.recbole.quick_start.quick_start import load_data_and_model, run_recbole
 from RecBole.recbole.utils import get_trainer, set_color
+from recbole_debias.quick_start import run_recbole_debias
 
 ##################################
 ######### Configurations #########
@@ -12,7 +13,7 @@ from RecBole.recbole.utils import get_trainer, set_color
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = ["MF", "LightGCN", "NGCF", "MultiVAE", "NNCF"]
+methods = ["MF", "BPR", "LightGCN", "NGCF", "MultiVAE", "NNCF"]
 datasets = ["ml-100k"]
 config_dict = {
     "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure"]
@@ -33,6 +34,15 @@ def is_model_trained(model: str) -> Optional[str]:
     return None
 
 
+def run_and_train_model(model: str, dataset: str) -> Dict[str, Any]:
+    recbole_debiased_models = ["cause", "dice", "macr", "mf", "mf_ips", "pda", "rel_mf"]
+
+    if model.lower() in recbole_debiased_models:
+        return run_recbole_debias(model=model, dataset=dataset, config_dict=config_dict, config_file_list=["config.yaml"])
+
+    return run_recbole(model=model, dataset=dataset, config_dict=config_dict, config_file_list=["config.yaml"])
+
+
 def run_and_evaluate_model(model: str, dataset: str) -> Dict[str, Any]:
     """
     Run and evaluate the model on the specified dataset
@@ -43,7 +53,7 @@ def run_and_evaluate_model(model: str, dataset: str) -> Dict[str, Any]:
     config_dict["checkpoint_dir"] = model_folder + dataset
     trained_model = is_model_trained(model)
     if trained_model is None:
-        return run_recbole(model=model, dataset=dataset, config_dict=config_dict)
+        return run_and_train_model(model, dataset)
 
     print(f"Model {model} has been trained on dataset {dataset}. Skipping training.")
     return evaluate_pre_trained_model(model_folder + dataset + "/" + trained_model)
