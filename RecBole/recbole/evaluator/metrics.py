@@ -827,5 +827,5 @@ class Exposure(AbstractMetric):
         rec_items = dataobject.get("rec.items")
         items, exposure = self.exposure(rec_items)
         results = {}
-        results["Exposure_Disparity"] = self.exposure_disparity_popularity(exposure, items)
+        results["Exposure_Disparity"] = round(self.exposure_disparity_popularity(exposure, items), self.decimal_place)
         return results
