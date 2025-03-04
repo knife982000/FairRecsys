@@ -1,7 +1,7 @@
 import json
 import os
 from logging import getLogger
-from typing import Optional, Any, Dict
+from typing import Optional, Any, Dict, List
 
 from RecBole.recbole.quick_start.quick_start import load_data_and_model, run_recbole
 from RecBole.recbole.utils import get_trainer, set_color
@@ -12,7 +12,7 @@ from RecBole.recbole.utils import get_trainer, set_color
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = ["BPR", "LightGCN", "NGCF", "MultiVAE", "NNCF"]
+methods = ["MF", "LightGCN", "NGCF", "MultiVAE", "NNCF"]
 datasets = ["ml-100k"]
 config_dict = {
     "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure"]
@@ -49,6 +49,19 @@ def run_and_evaluate_model(model: str, dataset: str) -> Dict[str, Any]:
     return evaluate_pre_trained_model(model_folder + dataset + "/" + trained_model)
 
 
+def model_supports_metrics(model_metrics: List) -> bool:
+    """
+    Check if the model supports the selected metrics
+    :param model_metrics: ``List`` The metrics supported by the model
+    :return: ``bool`` True if the model supports the selected metrics, False otherwise
+    """
+    metrics = [metric for metric in config_dict["metrics"] if metric not in model_metrics]
+    if len(metrics) > 0:
+        print(f"Model doesn't support some selected metrics: {metrics}")
+        return False
+    return True
+
+
 def evaluate_pre_trained_model(model_path: str) -> Dict[str, Any]:
     """
     Evaluate a pre-trained model
@@ -56,6 +69,9 @@ def evaluate_pre_trained_model(model_path: str) -> Dict[str, Any]:
     :return: ``Dict[str, Any]`` The evaluation results
     """
     config, model, dataset, train_data, valid_data, test_data = load_data_and_model(model_path)
+
+    if not model_supports_metrics(config["metrics"]):
+        return {"error": "Model doesn't support some selected metrics"}
 
     trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
     test_result = trainer.evaluate(test_data, load_best_model=False, show_progress=config["show_progress"])
