@@ -1,18 +1,18 @@
 # P6
 
-Using [RecBole](https://github.com/RUCAIBox/RecBole)
+Using [RecBole](https://github.com/RUCAIBox/RecBole) and [RecBole-Debias](https://github.com/JingsenZhang/Recbole-Debias/tree/master)
 
 ## Environment
 
-### [Python 3.8](https://www.python.org/downloads/release/python-380/)
+### 1. Use [Python 3.8](https://www.python.org/downloads/release/python-380/)
 
-### Install packages
+### 2. Install packages
 
 ```bash
 pip install -r .\requirements.txt
 ```
 
-### Install Recbole
+### 3. Install Recbole
 
 ```bash
 cd RecBole | pip install -e . --verbose
