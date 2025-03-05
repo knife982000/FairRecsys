@@ -13,10 +13,10 @@ from recbole_debias.quick_start import run_recbole_debias
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = ["MF", "BPR", "LightGCN", "NGCF", "MultiVAE", "NNCF"]
-datasets = ["ml-100k"]
+methods = ["BPR", "LightGCN", "NGCF", "MultiVAE"]
+datasets = ["ml-1m", "gowalla-merged", "yahoo-music", "amazon-books"]
 config_dict = {
-    "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure"]
+    "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy"]
 }
 
 
