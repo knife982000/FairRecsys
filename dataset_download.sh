@@ -4,7 +4,6 @@ urls=(
     "https://recbole.s3-accelerate.amazonaws.com/ProcessedDatasets/MovieLens/ml-1m.zip"
     "https://recbole.s3-accelerate.amazonaws.com/ProcessedDatasets/Yahoo-Music/yahoo-music.zip"
 )
-
 mkdir -p dataset
 
 for url in "${urls[@]}"; do
@@ -21,7 +20,6 @@ wget -O "dataset/gowalla-merged/gowalla.zip" "https://recbole.s3-accelerate.amaz
 unzip -o "dataset/gowalla-merged/gowalla.zip" -d "dataset/gowalla-merged"
 rm "dataset/gowalla-merged/gowalla.zip"
 mv "dataset/gowalla-merged/gowalla.inter" "dataset/gowalla-merged/gowalla-merged.inter"
-
 
 mkdir -p "dataset/amazon-books"
 wget -O "dataset/amazon-books/Amazon_Books.zip" "https://recbole.s3-accelerate.amazonaws.com/ProcessedDatasets/Amazon_ratings/Amazon_Books.zip"
