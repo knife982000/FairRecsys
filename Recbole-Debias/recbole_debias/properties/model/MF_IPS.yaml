@@ -1,3 +1,0 @@
-embedding_size: 64
-eta: 1
-pscore_method: 'item'  # 'item', 'user', 'nb'

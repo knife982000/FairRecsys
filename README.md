@@ -1,6 +1,6 @@
 # P6
 
-Using [RecBole](https://github.com/RUCAIBox/RecBole) and [RecBole-Debias](https://github.com/JingsenZhang/Recbole-Debias/tree/master)
+Using [RecBole](https://github.com/RUCAIBox/RecBole)
 
 ## Environment
 
