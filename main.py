@@ -1,3 +1,4 @@
+import argparse
 import json
 import os
 from logging import getLogger
@@ -5,7 +6,6 @@ from typing import Optional, Any, Dict, List
 
 from RecBole.recbole.quick_start.quick_start import load_data_and_model, run_recbole
 from RecBole.recbole.utils import get_trainer, set_color
-from recbole_debias.quick_start import run_recbole_debias
 
 ##################################
 ######### Configurations #########
@@ -16,7 +16,7 @@ metrics_results_folder = "./metrics_results/"
 methods = ["BPR", "LightGCN", "NGCF", "MultiVAE"]
 datasets = ["ml-1m", "gowalla-merged", "yahoo-music", "amazon-books"]
 config_dict = {
-    "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy"]
+    "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "GiniIndex", "ItemCoverage"]
 }
 
 
@@ -35,11 +35,6 @@ def is_model_trained(model: str) -> Optional[str]:
 
 
 def run_and_train_model(model: str, dataset: str) -> Dict[str, Any]:
-    recbole_debiased_models = ["cause", "dice", "macr", "mf", "mf_ips", "pda", "rel_mf"]
-
-    if model.lower() in recbole_debiased_models:
-        return run_recbole_debias(model=model, dataset=dataset, config_dict=config_dict, config_file_list=["config.yaml"])
-
     return run_recbole(model=model, dataset=dataset, config_dict=config_dict, config_file_list=["config.yaml"])
 
 
@@ -107,7 +102,23 @@ def save_metrics_results(model: str, dataset: str, results: Dict[str, Any]) -> N
 
 
 if __name__ == "__main__":
-    for method in methods:
-        for dataset in datasets:
-            results = run_and_evaluate_model(method, dataset)
-            save_metrics_results(method, dataset, results)
+    parser = argparse.ArgumentParser(description="Run and evaluate RecBole models")
+    parser.add_argument("-d", "--dataset", type=str, help=f"Dataset to use: {datasets}")
+    parser.add_argument("-m", "--method", type=str, help=f"Method to use: {methods}")
+    args = parser.parse_args()
+
+    if not args.dataset:
+        print("Specify a dataset using flag -d")
+        exit(1)
+    if args.dataset not in datasets:
+        print(f"Dataset {args.dataset} not supported. Supported datasets: {datasets}")
+        exit(1)
+    if not args.method:
+        print("Specify a method using flag -m")
+        exit(1)
+    if args.method not in methods:
+        print(f"Method {args.method} not supported. Supported methods: {methods}")
+        exit(1)
+
+    results = run_and_evaluate_model(args.method, args.dataset)
+    save_metrics_results(args.method, args.dataset, results)
