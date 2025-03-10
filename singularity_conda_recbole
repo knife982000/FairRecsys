@@ -27,8 +27,5 @@ From: ubuntu:oracular
     pip3 install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.4.0+cu121.html
     pip3 install "ray[tune]" kmeans-pytorch transformers
 
-    git clone https://github.com/AAU-Dat6-2025/P6.git
-    cd ./P6 && bash ./dataset_download.sh && pip install -e ./RecBole --verbose
-
 %environment
     export PATH="/usr/local/miniconda3/bin":$PATH
