@@ -4,6 +4,7 @@ import os
 from logging import getLogger
 from typing import Optional, Any, Dict, List
 
+import torch
 from RecBole.recbole.quick_start.quick_start import load_data_and_model, run_recbole
 from RecBole.recbole.utils import get_trainer, set_color
 
@@ -14,9 +15,9 @@ model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
 methods = ["BPR", "LightGCN", "NGCF", "MultiVAE"]
-datasets = ["ml-1m", "gowalla-merged", "yahoo-music", "amazon-books"]
+datasets = ["ml-100k", "ml-1m", "gowalla-merged", "yahoo-music", "amazon-books"]
 config_dict = {
-    "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "GiniIndex", "ItemCoverage"]
+    "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty"]
 }
 
 
@@ -34,7 +35,8 @@ def is_model_trained(model: str) -> Optional[str]:
     return None
 
 
-def run_and_train_model(model: str, dataset: str) -> Dict[str, Any]:
+def run_and_train_model_multi_gpu(model: str, dataset: str, gpus: int) -> Dict[str, Any]:
+    config_dict["nproc"] = gpus
     return run_recbole(model=model, dataset=dataset, config_dict=config_dict, config_file_list=["config.yaml"])
 
 
@@ -45,10 +47,17 @@ def run_and_evaluate_model(model: str, dataset: str) -> Dict[str, Any]:
     :param dataset: ``str`` The name of the dataset
     :return: ``Dict[str, Any]`` The evaluation results
     """
+    if torch.cuda.is_available():
+        gpus = [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
+        print(f"GPU(s) available({len(gpus)}): {gpus}")
+    else:
+        print("No GPU available. Exiting.")
+        exit(0)
+
     config_dict["checkpoint_dir"] = model_folder + dataset
     trained_model = is_model_trained(model)
     if trained_model is None:
-        return run_and_train_model(model, dataset)
+        return run_and_train_model_multi_gpu(model, dataset, len(gpus))
 
     print(f"Model {model} has been trained on dataset {dataset}. Skipping training.")
     return evaluate_pre_trained_model(model_folder + dataset + "/" + trained_model)
