@@ -5,7 +5,7 @@ from logging import getLogger
 from typing import Optional, Any, Dict, List
 
 import torch
-from RecBole.recbole.quick_start.quick_start import load_data_and_model, run_recbole
+from RecBole.recbole.quick_start.quick_start import load_data_and_model, run_recbole, run
 from RecBole.recbole.utils import get_trainer, set_color
 
 ##################################
@@ -37,7 +37,7 @@ def is_model_trained(model: str) -> Optional[str]:
 
 def run_and_train_model_multi_gpu(model: str, dataset: str, gpus: int) -> Dict[str, Any]:
     config_dict["nproc"] = gpus
-    return run_recbole(model=model, dataset=dataset, config_dict=config_dict, config_file_list=["config.yaml"])
+    return run(model=model, dataset=dataset, nproc=gpus, config_dict=config_dict, config_file_list=["config.yaml"])
 
 
 def run_and_evaluate_model(model: str, dataset: str) -> Dict[str, Any]:
