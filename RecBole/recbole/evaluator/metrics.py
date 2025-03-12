@@ -834,7 +834,7 @@ class Exposure(AbstractMetric):
 
 class Novelty(AbstractMetric):
     metric_type = EvaluatorType.RANKING
-    metric_need = ["rec.items", "data.count_items", "data.user_count"]
+    metric_need = ["rec.items", "data.count_items"]
 
     def __init__(self, config):
         super().__init__(config)
@@ -843,8 +843,7 @@ class Novelty(AbstractMetric):
         """Get the matrix of recommendation items and the number of users per item"""
         item_counter = dataobject.get("data.count_items")
         item_matrix = dataobject.get("rec.items")
-        user_count = dataobject.get("data.user_count")
-        return item_matrix.numpy(), dict(item_counter), user_count
+        return item_matrix.numpy(), dict(item_counter), item_matrix.shape[0]
 
     def calculate_metric(self, dataobject):
         item_matrix, item_count, user_count = self.used_info(dataobject)
