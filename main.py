@@ -35,12 +35,12 @@ def is_model_trained(model: str) -> Optional[str]:
     return None
 
 
-def run_and_train_model_multi_gpu(model: str, dataset: str, gpus: int) -> Dict[str, Any]:
+def run_and_train_model_multi_gpu(model: str, dataset: str, gpus: int, port: str) -> Dict[str, Any]:
     config_dict["nproc"] = gpus
-    return run(model=model, dataset=dataset, nproc=gpus, config_dict=config_dict, config_file_list=["config.yaml"])
+    return run(model=model, dataset=dataset, nproc=gpus, config_dict=config_dict, config_file_list=["config.yaml"], port=port)
 
 
-def run_and_evaluate_model(model: str, dataset: str) -> Dict[str, Any]:
+def run_and_evaluate_model(model: str, dataset: str, port: str) -> Dict[str, Any]:
     """
     Run and evaluate the model on the specified dataset
     :param model: ``str`` The name of the model
@@ -57,7 +57,7 @@ def run_and_evaluate_model(model: str, dataset: str) -> Dict[str, Any]:
     config_dict["checkpoint_dir"] = model_folder + dataset
     trained_model = is_model_trained(model)
     if trained_model is None:
-        return run_and_train_model_multi_gpu(model, dataset, len(gpus))
+        return run_and_train_model_multi_gpu(model, dataset, len(gpus), port)
 
     print(f"Model {model} has been trained on dataset {dataset}. Skipping training.")
     return evaluate_pre_trained_model(model_folder + dataset + "/" + trained_model)
@@ -114,8 +114,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run and evaluate RecBole models")
     parser.add_argument("-d", "--dataset", type=str, help=f"Dataset to use: {datasets}")
     parser.add_argument("-m", "--method", type=str, help=f"Method to use: {methods}")
+    parser.add_argument("-p", "--port", type=str, help="Port to use while multi training", default="5678")
     args = parser.parse_args()
-
+    print(f"Called with args: {args}")
     if not args.dataset:
         print("Specify a dataset using flag -d")
         exit(1)
@@ -128,6 +129,8 @@ if __name__ == "__main__":
     if args.method not in methods:
         print(f"Method {args.method} not supported. Supported methods: {methods}")
         exit(1)
+    if not args.port:
+        args.port = "5678"
 
-    results = run_and_evaluate_model(args.method, args.dataset)
+    results = run_and_evaluate_model(args.method, args.dataset, args.port)
     save_metrics_results(args.method, args.dataset, results)
