@@ -834,28 +834,33 @@ class Exposure(AbstractMetric):
 
 class Novelty(AbstractMetric):
     metric_type = EvaluatorType.RANKING
-    metric_need = ["rec.items", "data.count_items"]
+    metric_need = ["rec.items", "data.count_items", "data.user_count"]
 
     def __init__(self, config):
         super().__init__(config)
 
     def used_info(self, dataobject):
-        """Get the matrix of recommendation items and the popularity of items in training data"""
+        """Get the matrix of recommendation items and the number of users per item"""
         item_counter = dataobject.get("data.count_items")
         item_matrix = dataobject.get("rec.items")
-        return item_matrix.numpy(), dict(item_counter)
+        user_count = dataobject.get("data.user_count")
+        return item_matrix.numpy(), dict(item_counter), user_count
 
     def calculate_metric(self, dataobject):
-        item_matrix, item_count = self.used_info(dataobject)
-        result = self.novelty_score(item_matrix, item_count)
+        item_matrix, item_count, user_count = self.used_info(dataobject)
+        result = self.novelty_score(item_matrix, item_count, user_count)
         metric_dict = {"novelty": round(result, self.decimal_place)}
         return metric_dict
 
-    def novelty_score(self, item_matrix, item_count):
-        novelty_scores = np.zeros_like(item_matrix, dtype=np.float)
+    def novelty_score(self, item_matrix, item_count, user_count):
+        novelty_scores = np.zeros_like(item_matrix, dtype=np.float64)
+        nov_max = np.log2(user_count)
+
         for i in range(item_matrix.shape[0]):
             for j in range(item_matrix.shape[1]):
                 item = item_matrix[i, j]
-                p_i = item_count.get(item, 1e-10)  # Avoid log(0) by using a small default value
-                novelty_scores[i, j] = -np.log2(p_i)
+                num_users_interacted = item_count.get(item, 1e-10)
+                p_i = num_users_interacted / user_count         # Probability of interaction
+                novelty_scores[i, j] = -np.log2(p_i) / nov_max  # Normalize novelty
+
         return novelty_scores.mean()
