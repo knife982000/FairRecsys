@@ -1,14 +1,14 @@
 BootStrap: docker
-From: ubuntu:oracular
+From: ubuntu:20.04
 
 %post
+    export TMPDIR=/scratch/gz77ue/tmp
+    mkdir -p $TMPDIR
     apt-get update
     apt-get upgrade -y
     apt-get install -y curl
     apt-get install -y git
     apt-get install -y zip
-    apt-get install -y wget
-    apt-get install -y unzip
 
     curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
     bash Miniconda3-latest-Linux-x86_64.sh -bfp /usr/local
