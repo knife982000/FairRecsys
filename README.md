@@ -36,5 +36,5 @@ sbatch run_model.sh <dataset> <model>
 ```
 For example:
 ```bash
-sbatch run_model.sh ml-1m BPR
+bash run_model.sh ml-1m BPR
 ```
