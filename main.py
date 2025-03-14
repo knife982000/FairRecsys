@@ -3,9 +3,11 @@ import json
 import os
 from logging import getLogger
 from typing import Optional, Any, Dict, List
+import torch.multiprocessing as mp
 
 import torch
-from RecBole.recbole.quick_start.quick_start import load_data_and_model, run_recbole, run
+
+from RecBole.recbole.quick_start.quick_start import load_data_and_model, run_recbole, run_recboles
 from RecBole.recbole.utils import get_trainer, set_color
 
 ##################################
@@ -14,7 +16,7 @@ from RecBole.recbole.utils import get_trainer, set_color
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = ["BPR", "LightGCN", "NGCF", "MultiVAE"]
+methods = ["BPR", "LightGCN", "NGCF", "MultiVAE", "Random"]
 datasets = ["ml-100k", "ml-1m", "gowalla-merged", "yahoo-music", "amazon-books"]
 config_dict = {
     "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty"]
@@ -35,12 +37,35 @@ def is_model_trained(model: str) -> Optional[str]:
     return None
 
 
-def run_and_train_model_multi_gpu(model: str, dataset: str, gpus: int, port: str) -> Dict[str, Any]:
-    config_dict["nproc"] = gpus
-    return run(model=model, dataset=dataset, nproc=gpus, config_dict=config_dict, config_file_list=["config.yaml"], port=port)
+def run_and_train_model_multi_gpu(model: str, dataset: str) -> Dict[str, Any]:
+    """
+    Run and train the model on the specified dataset using multiple GPUs on a single node.
+    Based on run function from RecBole in "recbole.quick_start.quick_start"
+    :param model: ``str`` The name of the model
+    :param dataset: ``str`` The name of the dataset
+    :param nproc: ``int`` The number of GPUs to use
+    """
+    config_dict["world_size"] = config_dict["nproc"]
+    config_dict["offset"] = 0
+    queue = mp.get_context("spawn").SimpleQueue()
+
+    kwargs = {
+        "config_dict": config_dict,
+        "queue": queue,
+    }
+
+    mp.spawn(
+        run_recboles,
+        args=(model, dataset, ["config.yaml"], kwargs),
+        nprocs=config_dict["nproc"],
+        join=True,
+    )
+
+    res = None if queue.empty() else queue.get()
+    return res
 
 
-def run_and_evaluate_model(model: str, dataset: str, port: str) -> Dict[str, Any]:
+def run_and_evaluate_model(model: str, dataset: str) -> Dict[str, Any]:
     """
     Run and evaluate the model on the specified dataset
     :param model: ``str`` The name of the model
@@ -50,6 +75,7 @@ def run_and_evaluate_model(model: str, dataset: str, port: str) -> Dict[str, Any
     if torch.cuda.is_available():
         gpus = [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
         print(f"GPU(s) available({len(gpus)}): {gpus}")
+        config_dict["nproc"] = len(gpus)
     else:
         print("No GPU available. Exiting.")
         exit(0)
@@ -57,7 +83,10 @@ def run_and_evaluate_model(model: str, dataset: str, port: str) -> Dict[str, Any
     config_dict["checkpoint_dir"] = model_folder + dataset
     trained_model = is_model_trained(model)
     if trained_model is None:
-        return run_and_train_model_multi_gpu(model, dataset, len(gpus), port)
+        if len(gpus) == 1:
+            return run_recbole(model, dataset, ["config.yaml"], config_dict)
+        else:
+            return run_and_train_model_multi_gpu(model, dataset)
 
     print(f"Model {model} has been trained on dataset {dataset}. Skipping training.")
     return evaluate_pre_trained_model(model_folder + dataset + "/" + trained_model)
@@ -83,6 +112,7 @@ def evaluate_pre_trained_model(model_path: str) -> Dict[str, Any]:
     :return: ``Dict[str, Any]`` The evaluation results
     """
     config, model, dataset, train_data, valid_data, test_data = load_data_and_model(model_path)
+    config["nproc"] = config_dict["nproc"]
 
     if not model_supports_metrics(config["metrics"]):
         return {"error": "Model doesn't support some selected metrics"}
@@ -104,18 +134,30 @@ def save_metrics_results(model: str, dataset: str, results: Dict[str, Any]) -> N
     :param results: ``Dict[str,Any]`` The evaluation results
     :return: ``None``
     """
-    path = f"{metrics_results_folder}{dataset}/"
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(f"{path}{model}.json", "w") as file:
-        json.dump(results, file)
+    path = f"{metrics_results_folder}results.json"
+    print(f"Saving results to {path}")
+    os.makedirs(os.path.dirname(metrics_results_folder), exist_ok=True)
+    if os.path.exists(path):
+        with open(path, "r") as file:
+            all_results = json.load(file)
+    else:
+        all_results = {}
+
+    if dataset not in all_results:
+        all_results[dataset] = {}
+
+    all_results[dataset][model] = results
+
+    with open(path, "w") as file:
+        json.dump(all_results, file)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run and evaluate RecBole models")
     parser.add_argument("-d", "--dataset", type=str, help=f"Dataset to use: {datasets}")
     parser.add_argument("-m", "--method", type=str, help=f"Method to use: {methods}")
-    parser.add_argument("-p", "--port", type=str, help="Port to use while multi training", default="5678")
     args = parser.parse_args()
+
     print(f"Called with args: {args}")
     if not args.dataset:
         print("Specify a dataset using flag -d")
@@ -129,8 +171,12 @@ if __name__ == "__main__":
     if args.method not in methods:
         print(f"Method {args.method} not supported. Supported methods: {methods}")
         exit(1)
-    if not args.port:
-        args.port = "5678"
 
-    results = run_and_evaluate_model(args.method, args.dataset, args.port)
+    # Fixing compatibility issues
+    import numpy as np
+    np.float = np.float64
+    np.complex = np.complex128
+    np.unicode = np.str_
+
+    results = run_and_evaluate_model(args.method, args.dataset)
     save_metrics_results(args.method, args.dataset, results)
