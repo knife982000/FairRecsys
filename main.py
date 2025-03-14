@@ -37,6 +37,22 @@ def is_model_trained(model: str) -> Optional[str]:
     return None
 
 
+def find_available_port(start: int, end: int) -> int:
+    """
+    Find an available port in the specified range
+    :param start: ``int`` The start of the port range
+    :param end: ``int`` The end of the port range
+    """
+    import socket
+    for port in range(start, end + 1):
+        # Try to connect to the port, if it fails (doesn't return 0), the port is available
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("127.0.0.1", port)) != 0:
+                print(f"Binding to 127.0.0.1:{port} for multi-GPU training")
+                return port
+    raise RuntimeError("No available ports in the specified range")
+
+
 def run_and_train_model_multi_gpu(model: str, dataset: str) -> Dict[str, Any]:
     """
     Run and train the model on the specified dataset using multiple GPUs on a single node.
@@ -47,6 +63,8 @@ def run_and_train_model_multi_gpu(model: str, dataset: str) -> Dict[str, Any]:
     """
     config_dict["world_size"] = config_dict["nproc"]
     config_dict["offset"] = 0
+    config_dict["ip"] = "127.0.0.1"
+    config_dict["port"] = str(find_available_port(5670, 5680))
     queue = mp.get_context("spawn").SimpleQueue()
 
     kwargs = {
