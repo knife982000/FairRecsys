@@ -23,12 +23,13 @@ set of user(u)-item(i) pairs, :math:`\hat r_{u i}` represents the score predicte
 """
 
 from logging import getLogger
-from typing import Tuple
+from typing import Tuple, Dict
 
 import numpy as np
 from collections import Counter
 
 import torch
+from numpy import ndarray
 from sklearn.metrics import auc as sk_auc
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
@@ -826,39 +827,36 @@ class Exposure(AbstractMetric):
     def calculate_metric(self, dataobject):
         rec_items = dataobject.get("rec.items")
         items, exposure = self.exposure(rec_items)
-        results = {
-            "Exposure_Disparity": round(self.exposure_disparity_popularity(exposure, items), self.decimal_place)
-        }
-        return results
+        return {"exposure": round(self.exposure_disparity_popularity(exposure, items), self.decimal_place)}
 
 
 class Novelty(AbstractMetric):
     metric_type = EvaluatorType.RANKING
-    metric_need = ["rec.items", "data.count_items"]
+    metric_need = ["rec.items"]
 
     def __init__(self, config):
         super().__init__(config)
 
     def used_info(self, dataobject):
         """Get the matrix of recommendation items and the number of users per item"""
-        item_counter = dataobject.get("data.count_items")
         item_matrix = dataobject.get("rec.items")
-        return item_matrix.numpy(), dict(item_counter), item_matrix.shape[0]
+        item, interactions = item_matrix.flatten().unique(return_counts=True)
+        item_interactions_dict = {item.item(): interactions.item() for item, interactions in zip(item, interactions)}
+        return item_matrix.numpy(), item_interactions_dict, item_matrix.shape[0]
 
     def calculate_metric(self, dataobject):
         item_matrix, item_count, user_count = self.used_info(dataobject)
         result = self.novelty_score(item_matrix, item_count, user_count)
-        metric_dict = {"novelty": round(result, self.decimal_place)}
-        return metric_dict
+        return {"novelty": round(result, self.decimal_place)}
 
-    def novelty_score(self, item_matrix, item_count, user_count):
+    def novelty_score(self, item_matrix: ndarray, item_count: Dict, user_count: int):
         novelty_scores = np.zeros_like(item_matrix, dtype=np.float64)
         nov_max = np.log2(user_count)
 
         for i in range(item_matrix.shape[0]):
             for j in range(item_matrix.shape[1]):
                 item = item_matrix[i, j]
-                num_users_interacted = item_count.get(item, 1e-10)
+                num_users_interacted = item_count[item]
                 p_i = num_users_interacted / user_count         # Probability of interaction
                 novelty_scores[i, j] = -np.log2(p_i) / nov_max  # Normalize novelty
 
