@@ -4,6 +4,7 @@ import os
 from logging import getLogger
 from typing import Optional, Any, Dict, List
 import torch.multiprocessing as mp
+import torch.distributed as dist
 
 import torch
 
@@ -17,10 +18,11 @@ model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
 methods = ["BPR", "LightGCN", "NGCF", "MultiVAE", "Random"]
-datasets = ["ml-100k", "ml-1m", "gowalla-merged", "yahoo-music", "amazon-books"]
+datasets = ["ml-100k", "ml-1m", "gowalla-merged", "steam-merged"]
 config_dict = {
     "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty"]
 }
+config_file = ["config.yaml"]
 
 
 def is_model_trained(model: str) -> Optional[str]:
@@ -61,10 +63,6 @@ def run_and_train_model_multi_gpu(model: str, dataset: str) -> Dict[str, Any]:
     :param dataset: ``str`` The name of the dataset
     :param nproc: ``int`` The number of GPUs to use
     """
-    config_dict["world_size"] = config_dict["nproc"]
-    config_dict["offset"] = 0
-    config_dict["ip"] = "127.0.0.1"
-    config_dict["port"] = str(find_available_port(5670, 5680))
     queue = mp.get_context("spawn").SimpleQueue()
 
     kwargs = {
@@ -74,7 +72,7 @@ def run_and_train_model_multi_gpu(model: str, dataset: str) -> Dict[str, Any]:
 
     mp.spawn(
         run_recboles,
-        args=(model, dataset, ["config.yaml"], kwargs),
+        args=(model, dataset, config_file, kwargs),
         nprocs=config_dict["nproc"],
         join=True,
     )
@@ -91,18 +89,24 @@ def run_and_evaluate_model(model: str, dataset: str) -> Dict[str, Any]:
     :return: ``Dict[str, Any]`` The evaluation results
     """
     if torch.cuda.is_available():
-        gpus = [torch.cuda.get_device_name(i) for i in range(torch.cuda.device_count())]
+        gpus = [f"{torch.cuda.get_device_name(i)} - {i}" for i in range(torch.cuda.device_count())]
         print(f"GPU(s) available({len(gpus)}): {gpus}")
         config_dict["nproc"] = len(gpus)
     else:
         print("No GPU available. Exiting.")
         exit(0)
 
+    # Configuration for distributed training
+    config_dict["world_size"] = config_dict["nproc"]
+    config_dict["offset"] = 0
+    config_dict["ip"] = "127.0.0.1"
+    config_dict["port"] = str(find_available_port(5670, 5680))
+
     config_dict["checkpoint_dir"] = model_folder + dataset
     trained_model = is_model_trained(model)
     if trained_model is None:
         if len(gpus) == 1:
-            return run_recbole(model, dataset, ["config.yaml"], config_dict)
+            return run_recbole(model, dataset, config_file, config_dict)
         else:
             return run_and_train_model_multi_gpu(model, dataset)
 
@@ -129,6 +133,7 @@ def evaluate_pre_trained_model(model_path: str) -> Dict[str, Any]:
     :param model_path: ``str`` The path to the pre-trained model
     :return: ``Dict[str, Any]`` The evaluation results
     """
+    dist.init_process_group(backend='nccl', init_method=f'tcp://{config_dict["ip"]}:{config_dict["port"]}', world_size=config_dict["nproc"], rank=0)
     config, model, dataset, train_data, valid_data, test_data = load_data_and_model(model_path)
     config["nproc"] = config_dict["nproc"]
 
@@ -189,6 +194,9 @@ if __name__ == "__main__":
     if args.method not in methods:
         print(f"Method {args.method} not supported. Supported methods: {methods}")
         exit(1)
+
+    if args.dataset == "steam-merged":
+        config_file = ["config_steam.yaml"]
 
     # Fixing compatibility issues
     import numpy as np
