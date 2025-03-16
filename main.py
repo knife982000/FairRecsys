@@ -8,6 +8,7 @@ import torch.distributed as dist
 
 import torch
 
+from RecBole.recbole.config.configurator import Config
 from RecBole.recbole.quick_start.quick_start import load_data_and_model, run_recbole, run_recboles
 from RecBole.recbole.utils import get_trainer, set_color
 
@@ -17,7 +18,7 @@ from RecBole.recbole.utils import get_trainer, set_color
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = ["BPR", "LightGCN", "NGCF", "MultiVAE", "Random"]
+methods =  ["BPR", "LightGCN", "NGCF", "MultiVAE", "Random"]
 datasets = ["ml-100k", "ml-1m", "gowalla-merged", "steam-merged"]
 config_dict = {
     "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty"]
@@ -139,6 +140,14 @@ def evaluate_pre_trained_model(model_path: str) -> Dict[str, Any]:
 
     if not model_supports_metrics(config["metrics"]):
         return {"error": "Model doesn't support some selected metrics"}
+
+    config_file_eval = ["config_eval.yaml"] if config_file == ["config.yaml"] else ["config_steam_eval.yaml"]
+    config = Config(
+        model=model,
+        dataset=dataset,
+        config_file_list=config_file_eval,
+        config_dict=config_dict,
+    )
 
     trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
     test_result = trainer.evaluate(test_data, load_best_model=False, show_progress=config["show_progress"])
