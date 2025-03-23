@@ -23,7 +23,7 @@ set of user(u)-item(i) pairs, :math:`\hat r_{u i}` represents the score predicte
 """
 
 from logging import getLogger
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List
 
 import numpy as np
 from collections import Counter
@@ -786,6 +786,7 @@ class Exposure(AbstractMetric):
 
     def __init__(self, config):
         super().__init__(config)
+        self.topk = config["topk"]
 
     def exposure(self, rec_items: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -796,7 +797,7 @@ class Exposure(AbstractMetric):
         items, exposure = rec_items.flatten().unique(return_counts=True)
         return items, exposure
 
-    def exposure_disparity_popularity(self, exposure: torch.Tensor, items: torch.Tensor, split_ratio: float):
+    def exposure_disparity_popularity(self, exposure: torch.Tensor, items: torch.Tensor, split_ratio: float) -> torch.Tensor:
         """
         Calculate the exposure disparity based on popularity
         :param exposure: ``Tensor`` of shape (n_rec_items)
@@ -809,7 +810,8 @@ class Exposure(AbstractMetric):
         item_exposure[items] = exposure.float()
 
         # Calculate median exposure
-        threshold = torch.quantile(item_exposure[item_exposure > 0], split_ratio)
+        nonzero_exposures = item_exposure[item_exposure > 0]
+        threshold = torch.quantile(nonzero_exposures, split_ratio)
 
         # Divide items into groups based on their exposure
         popular = (item_exposure >= threshold).nonzero(as_tuple=True)[0]  # Top split_ratio% exposure
@@ -819,20 +821,32 @@ class Exposure(AbstractMetric):
         avg_exposure_popular = item_exposure[popular].mean()
         avg_exposure_unpopular = item_exposure[unpopular].mean()
 
+        print(f"Avg Popular: {avg_exposure_popular}\nAvg Unpopular: {avg_exposure_unpopular}")
         # Calculate disparity
         disparity = torch.abs(avg_exposure_popular - avg_exposure_unpopular)
 
-        return disparity.item()
+        return disparity
+
+    def normalize_at_k(self, disparity_exposure: torch.Tensor, num_users: int, num_items: int, split: str) -> Dict[int, float]:
+        results = {}
+        for topk in self.topk:
+            normalization_factor = (num_users * topk) / num_items
+            normalized_disparity_exposure = disparity_exposure / normalization_factor
+            results[f"exposure_{split}@{topk}"] = round(normalized_disparity_exposure.item(), self.decimal_place)
+            print(f"Exposure_{split}@{topk}: {normalized_disparity_exposure.item()}\n\t {num_users}*{topk}/{num_items} = {normalization_factor}\n\t {disparity_exposure}/{normalization_factor} = {normalized_disparity_exposure}")
+        return results
 
     def calculate_metric(self, dataobject):
         rec_items = dataobject.get("rec.items")
+        num_users = rec_items.shape[0]
         items, exposure = self.exposure(rec_items)
-        return {
-            "exposure_50-50": round(self.exposure_disparity_popularity(exposure, items, 0.50), self.decimal_place),
-            "exposure_80-20": round(self.exposure_disparity_popularity(exposure, items, 0.20), self.decimal_place),
-            "exposure_90-10": round(self.exposure_disparity_popularity(exposure, items, 0.10), self.decimal_place),
-            "exposure_99-01": round(self.exposure_disparity_popularity(exposure, items, 0.01), self.decimal_place)
-        }
+        splits = [0.50, 0.80, 0.90, 0.99]
+        results = {}
+        for split in splits:
+            print(f"\nExposure at {int((1-split)*100)} / {int(split*100)}")
+            disparity_exposure = self.exposure_disparity_popularity(exposure, items, split)
+            results.update(self.normalize_at_k(disparity_exposure, num_users, len(items), f"{int(split*100)}-{int((1-split)*100)}"))
+        return results
 
 
 class Novelty(AbstractMetric):
@@ -862,7 +876,7 @@ class Novelty(AbstractMetric):
             for j in range(item_matrix.shape[1]):
                 item = item_matrix[i, j]
                 num_users_interacted = item_count[item]
-                p_i = num_users_interacted / user_count         # Probability of interaction
+                p_i = num_users_interacted / user_count  # Probability of interaction
                 novelty_scores[i, j] = -np.log2(p_i) / nov_max  # Normalize novelty
 
         return novelty_scores.mean()
