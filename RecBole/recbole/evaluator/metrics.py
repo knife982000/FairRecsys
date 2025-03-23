@@ -821,7 +821,6 @@ class Exposure(AbstractMetric):
         avg_exposure_popular = item_exposure[popular].mean()
         avg_exposure_unpopular = item_exposure[unpopular].mean()
 
-        print(f"Avg Popular: {avg_exposure_popular}\nAvg Unpopular: {avg_exposure_unpopular}")
         # Calculate disparity
         disparity = torch.abs(avg_exposure_popular - avg_exposure_unpopular)
 
@@ -833,7 +832,6 @@ class Exposure(AbstractMetric):
             normalization_factor = (num_users * topk) / num_items
             normalized_disparity_exposure = disparity_exposure / normalization_factor
             results[f"exposure_{split}@{topk}"] = round(normalized_disparity_exposure.item(), self.decimal_place)
-            print(f"Exposure_{split}@{topk}: {normalized_disparity_exposure.item()}\n\t {num_users}*{topk}/{num_items} = {normalization_factor}\n\t {disparity_exposure}/{normalization_factor} = {normalized_disparity_exposure}")
         return results
 
     def calculate_metric(self, dataobject):
@@ -843,7 +841,6 @@ class Exposure(AbstractMetric):
         splits = [0.50, 0.80, 0.90, 0.99]
         results = {}
         for split in splits:
-            print(f"\nExposure at {int((1-split)*100)} / {int(split*100)}")
             disparity_exposure = self.exposure_disparity_popularity(exposure, items, split)
             results.update(self.normalize_at_k(disparity_exposure, num_users, len(items), f"{int(split*100)}-{int((1-split)*100)}"))
         return results
