@@ -796,12 +796,12 @@ class Exposure(AbstractMetric):
         items, exposure = rec_items.flatten().unique(return_counts=True)
         return items, exposure
 
-    def exposure_disparity_popularity(self, exposure: torch.Tensor, items: torch.Tensor):
+    def exposure_disparity_popularity(self, exposure: torch.Tensor, items: torch.Tensor, split_ratio: float):
         """
         Calculate the exposure disparity based on popularity
         :param exposure: ``Tensor`` of shape (n_rec_items)
         :param items: ``Tensor`` of shape (n_rec_items)
-        :param count_items: ``Tensor`` of shape (n_items)
+        :param split_ratio: ``float`` ratio to split items into popular and unpopular groups
         :return: ``None``
         """
         # Make tensor of exposure where their item id is their index
@@ -809,11 +809,11 @@ class Exposure(AbstractMetric):
         item_exposure[items] = exposure.float()
 
         # Calculate median exposure
-        median = torch.median(item_exposure[item_exposure > 0])
+        threshold = torch.quantile(item_exposure[item_exposure > 0], split_ratio)
 
         # Divide items into groups based on their exposure
-        popular = (item_exposure >= median).nonzero(as_tuple=True)[0]  # Top 50% exposure
-        unpopular = (item_exposure < median).nonzero(as_tuple=True)[0]  # Bottom 50% exposure
+        popular = (item_exposure >= threshold).nonzero(as_tuple=True)[0]  # Top split_ratio% exposure
+        unpopular = (item_exposure < threshold).nonzero(as_tuple=True)[0]  # Bottom (1 - split_ratio)% exposure
 
         # Get the average exposure of popular and unpopular items
         avg_exposure_popular = item_exposure[popular].mean()
@@ -827,7 +827,12 @@ class Exposure(AbstractMetric):
     def calculate_metric(self, dataobject):
         rec_items = dataobject.get("rec.items")
         items, exposure = self.exposure(rec_items)
-        return {"exposure": round(self.exposure_disparity_popularity(exposure, items), self.decimal_place)}
+        return {
+            "exposure_50-50": round(self.exposure_disparity_popularity(exposure, items, 0.50), self.decimal_place),
+            "exposure_80-20": round(self.exposure_disparity_popularity(exposure, items, 0.20), self.decimal_place),
+            "exposure_90-10": round(self.exposure_disparity_popularity(exposure, items, 0.10), self.decimal_place),
+            "exposure_99-01": round(self.exposure_disparity_popularity(exposure, items, 0.01), self.decimal_place)
+        }
 
 
 class Novelty(AbstractMetric):
