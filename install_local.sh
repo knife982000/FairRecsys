@@ -22,5 +22,6 @@ conda install -y conda-forge::lightgbm
 pip3 install torch==2.4.0 torchvision torchaudio
 pip3 install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.4.0+cu121.html
 pip3 install "ray[tune]" kmeans-pytorch transformers
+pip3 install matplotlib
 
 pip install -e ./RecBole --verbose
