@@ -23,7 +23,7 @@ metrics_results_folder = "./metrics_results/"
 methods =  ["BPR", "LightGCN", "NGCF", "MultiVAE", "Random"]
 datasets = ["ml-100k", "ml-1m", "ml-20m", "gowalla-merged", "steam-merged"]
 config_dictionary = {
-    "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty"]
+    "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty", "RecommendedGraph"]
 }
 config_file = ["config.yaml"]
 
@@ -101,9 +101,10 @@ class RecboleRunner:
         trained_model = self.get_trained_model_path()
         if trained_model is None or self.retrain:
             if len(self.gpus) == 1:
-                return run_recbole(self.model_name, self.dataset_name, config_file, self.config_dict)
+                run_recbole(self.model_name, self.dataset_name, config_file, self.config_dict)
             else:
-                return self.run_and_train_model_multi_gpu()
+                self.run_and_train_model_multi_gpu()
+            trained_model = self.get_trained_model_path()
 
         print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Skipping training.")
         return self.evaluate_pre_trained_model(trained_model)
@@ -134,12 +135,12 @@ class RecboleRunner:
             return False
         return True
 
-    def get_random_model(self):
+    def get_model_and_dataset(self):
         """
         Get and initialise the Random model
         :return: ``Tuple[Config, torch.nn.Module, Dataset, Data, Data, Data]`` The configuration, model, dataset, train data, validation data and test data
         """
-        config = Config(model="Random", dataset=self.dataset_name, config_dict=self.config_dict, config_file_list=self.config_file)
+        config = Config(model=self.model_name, dataset=self.dataset_name, config_dict=self.config_dict, config_file_list=self.config_file)
         init_seed(config["seed"], config["reproducibility"])
 
         dataset = create_dataset(config)
@@ -155,30 +156,35 @@ class RecboleRunner:
         :param model_path: ``str`` The path to the pre-trained model
         :return: ``Dict[str, Any]`` The evaluation results
         """
+        logger = getLogger()
+
         dist.init_process_group(backend='nccl', init_method=f'tcp://{self.config_dict["ip"]}:{self.config_dict["port"]}', world_size=self.config_dict["nproc"], rank=0)
-        if self.model_name == "Random":
-            config, model, _, _, _, test_data = self.get_random_model()
-        elif model_path != "":
-            config, model, _, _, _, test_data = load_data_and_model(model_path)
-        else:
-            raise RuntimeError("No pre-trained model was specified")
+        config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset()
 
         config["nproc"] = self.config_dict["nproc"]
-
-        if not self.model_supports_metrics(config["metrics"]):
-            return {"error": "Model doesn't support some selected metrics"}
 
         # Set evaluation to full mode
         config["eval_args"] = {'split': {'RS': [0.8, 0.1, 0.1]}, 'order': 'RO', 'group_by': 'user', 'mode': {'valid': 'full', 'test': 'full'}}
         config["metric_decimal_place"] = 10
+
         # Ensures the correct GPUs are used instead of the ones used during training
         config["gpu_id"] = self.config["gpu_id"]
+        config["epochs"] = 0
 
-        print(f"Adjusted config: \n{config}")
+        is_not_random = config["model"] != "Random"
+
+        logger.info(f"Adjusted config: \n{config}")
         trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
-        test_result = trainer.evaluate(test_data, load_best_model=False, show_progress=config["show_progress"])
+        if is_not_random:
+            trainer.resume_checkpoint(model_path)
 
-        logger = getLogger()
+        # @TODO: Find better solution for this
+        # Some data can only be accessed after the model has been fitted
+        # This is a workaround to allow all metrics to be calculated
+        # It will not train as the number of epochs is set to 0
+        trainer.fit(train_data, valid_data, saved=False, show_progress=True)
+
+        test_result = trainer.evaluate(test_data, load_best_model=is_not_random, show_progress=config["show_progress"])
         logger.info(set_color("test result", "yellow") + f": {test_result}")
 
         return {"test_result": test_result}
