@@ -21,7 +21,6 @@ set of user(u)-item(i) pairs, :math:`\hat r_{u i}` represents the score predicte
 :math:`{r}_{u i}` represents the ground-truth labels.
 
 """
-
 from logging import getLogger
 from typing import Tuple, Dict, List
 
@@ -877,3 +876,34 @@ class Novelty(AbstractMetric):
                 novelty_scores[i, j] = -np.log2(p_i) / nov_max  # Normalize novelty
 
         return novelty_scores.mean()
+
+
+class RecommendedGraph(AbstractMetric):
+    metric_type = EvaluatorType.RANKING
+    metric_need = ["rec.items", "data.num_items"]
+    smaller = True
+
+    def __init__(self, config):
+        super().__init__(config)
+
+    def exposure(self, rec_items: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Calculate the exposure of each recommended items
+        :param rec_items: ``Tensor`` of shape (n_users, n_rec_items)
+        :return: ``(Tensor,Tensor)`` list of items and their exposure
+        """
+        items, exposure = rec_items.flatten().unique(return_counts=True)
+        return items, exposure
+
+    def calculate_metric(self, dataobject):
+        rec_items = dataobject.get("rec.items")
+        num_items = dataobject.get("data.num_items")
+
+        _, exposure = self.exposure(rec_items)
+
+        # Append all items that did not get exposed
+        exposure_list = exposure.tolist()
+        while len(exposure_list) < num_items:
+            exposure_list.append(0)
+
+        return {"plot_data": exposure_list}
