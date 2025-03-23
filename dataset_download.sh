@@ -9,6 +9,15 @@ else
   echo "MovieLens 1M dataset already exists, skipping..."
 fi
 
+if [ ! -d "dataset/ml-20m" ]; then
+  mkdir -p "dataset/ml-20m"
+  wget -O "dataset/ml-20m/ml-20m.zip" "https://recbole.s3-accelerate.amazonaws.com/ProcessedDatasets/MovieLens/ml-20m.zip"
+  unzip -o "dataset/ml-20m/ml-20m.zip" -d "dataset/ml-20m"
+  rm "dataset/ml-20m/ml-20m.zip"
+else
+  echo "MovieLens 20M dataset already exists, skipping..."
+fi
+
 if [ ! -d "dataset/gowalla-merged" ]; then
   mkdir -p "dataset/gowalla-merged"
   wget -O "dataset/gowalla-merged/gowalla.zip" "https://recbole.s3-accelerate.amazonaws.com/ProcessedDatasets/Gowalla/merged/gowalla.zip"
