@@ -21,8 +21,11 @@ set of user(u)-item(i) pairs, :math:`\hat r_{u i}` represents the score predicte
 :math:`{r}_{u i}` represents the ground-truth labels.
 
 """
+import json
+import os
+from datetime import datetime
 from logging import getLogger
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Any
 
 import numpy as np
 from collections import Counter
@@ -780,7 +783,7 @@ class TailPercentage(AbstractMetric):
 
 class Exposure(AbstractMetric):
     metric_type = EvaluatorType.RANKING
-    metric_need = ["rec.items"]
+    metric_need = ["rec.items", "data.num_users", "data.num_items"]
     smaller = True
 
     def __init__(self, config):
@@ -825,7 +828,7 @@ class Exposure(AbstractMetric):
 
         return disparity
 
-    def normalize_at_k(self, disparity_exposure: torch.Tensor, num_users: int, num_items: int, split: str) -> Dict[int, float]:
+    def normalize_at_k(self, disparity_exposure: torch.Tensor, num_users: int, num_items: int, split: str) -> Dict[str, float]:
         results = {}
         for topk in self.topk:
             normalization_factor = (num_users * topk) / num_items
@@ -833,16 +836,69 @@ class Exposure(AbstractMetric):
             results[f"exposure_{split}@{topk}"] = round(normalized_disparity_exposure.item(), self.decimal_place)
         return results
 
-    def calculate_metric(self, dataobject):
+    def used_info(self, dataobject):
         rec_items = dataobject.get("rec.items")
-        num_users = rec_items.shape[0]
+        num_items = dataobject.get("data.num_items")
+        num_users = dataobject.get("data.num_users")
         items, exposure = self.exposure(rec_items)
+        return items, exposure, num_items, num_users
+
+    def calculate_metric(self, dataobject):
+        items, exposure, num_items, num_users = self.used_info(dataobject)
+        results: Dict[str, Any] = {}
+
         splits = [0.50, 0.80, 0.90, 0.99]
-        results = {}
         for split in splits:
             disparity_exposure = self.exposure_disparity_popularity(exposure, items, split)
             results.update(self.normalize_at_k(disparity_exposure, num_users, len(items), f"{int(split*100)}-{int((1-split)*100)}"))
+
         return results
+
+
+class RecommendedGraph(AbstractMetric):
+    metric_type = EvaluatorType.RANKING
+    metric_need = ["rec.items", "data.num_users", "data.num_items"]
+    smaller = True
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.topk = config["topk"]
+
+    def used_info(self, dataobject):
+        rec_items = dataobject.get("rec.items")
+        num_items = dataobject.get("data.num_items")
+        num_users = dataobject.get("data.num_users")
+        items, exposure = self.exposure(rec_items)
+        return items, exposure, num_items, num_users
+
+    def exposure(self, rec_items: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Calculate the exposure of each recommended items
+        :param rec_items: ``Tensor`` of shape (n_users, n_rec_items)
+        :return: ``(Tensor,Tensor)`` list of items and their exposure
+        """
+        items, exposure = rec_items.flatten().unique(return_counts=True)
+        return items, exposure.to("cpu")
+
+    def save_plot_data(self, data: Dict[str, Any]) -> str:
+        """
+        Saving the plot data to a json file
+        :param data: ``Dict`` of data to be saved
+        :return: ``str`` path to the saved file
+        """
+        path = f"./metrics_results/" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + ".json"
+        os.makedirs(os.path.dirname("./metrics_results/"), exist_ok=True)
+
+        with open(path, "w") as file:
+            json.dump(data, file)
+        return path
+
+    def calculate_metric(self, dataobject):
+        items, exposure, num_items, num_users = self.used_info(dataobject)
+        fair_exposure = (num_users * self.topk[0]) / num_items
+        path = self.save_plot_data({"plot_data": exposure.tolist(), "num_items": num_items, "fair_exposure" : fair_exposure})
+
+        return {"plot_data": path}
 
 
 class Novelty(AbstractMetric):
@@ -876,34 +932,3 @@ class Novelty(AbstractMetric):
                 novelty_scores[i, j] = -np.log2(p_i) / nov_max  # Normalize novelty
 
         return novelty_scores.mean()
-
-
-class RecommendedGraph(AbstractMetric):
-    metric_type = EvaluatorType.RANKING
-    metric_need = ["rec.items", "data.num_items"]
-    smaller = True
-
-    def __init__(self, config):
-        super().__init__(config)
-
-    def exposure(self, rec_items: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        """
-        Calculate the exposure of each recommended items
-        :param rec_items: ``Tensor`` of shape (n_users, n_rec_items)
-        :return: ``(Tensor,Tensor)`` list of items and their exposure
-        """
-        items, exposure = rec_items.flatten().unique(return_counts=True)
-        return items, exposure
-
-    def calculate_metric(self, dataobject):
-        rec_items = dataobject.get("rec.items")
-        num_items = dataobject.get("data.num_items")
-
-        _, exposure = self.exposure(rec_items)
-
-        # Append all items that did not get exposed
-        exposure_list = exposure.tolist()
-        while len(exposure_list) < num_items:
-            exposure_list.append(0)
-
-        return {"plot_data": exposure_list}
