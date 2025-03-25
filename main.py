@@ -51,7 +51,7 @@ class RecboleRunner:
         self.dataset_name = dataset_name
         self.config_dict = config_dict if config_dict is not None else {}
         self.config_file = config_file_list if config_file_list is not None else []
-        self.eval_config = eval_config_file_list if config_file_list is not None else []
+        self.eval_config = eval_config_file_list if eval_config_file_list is not None else []
         self.config = Config(model=model_name, dataset=dataset_name, config_dict=self.config_dict, config_file_list=self.config_file)
         self.gpus = self.get_available_cuda_gpus()
         self.retrain = retrain
@@ -61,6 +61,7 @@ class RecboleRunner:
         self.config_dict["offset"] = 0
         self.config_dict["ip"] = "127.0.0.1"
         self.config_dict["port"] = str(find_available_port(5670, 5680))
+        self.config_dict["checkpoint_dir"] = model_folder + self.dataset_name
 
     def get_trained_model_path(self) -> Optional[str]:
         """
@@ -96,7 +97,6 @@ class RecboleRunner:
         Run and evaluate the model on the specified dataset
         :return: ``Dict[str, Any]`` The evaluation results
         """
-        self.config_dict["checkpoint_dir"] = model_folder + self.dataset_name
         if self.model_name == "Random":
             return self.evaluate_pre_trained_model("")
 
