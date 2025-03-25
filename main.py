@@ -103,10 +103,9 @@ class RecboleRunner:
         trained_model = self.get_trained_model_path()
         if trained_model is None or self.retrain:
             if len(self.gpus) == 1:
-                run_recbole(self.model_name, self.dataset_name, config_file, self.config_dict)
+                return run_recbole(self.model_name, self.dataset_name, config_file, self.config_dict)
             else:
-                self.run_and_train_model_multi_gpu()
-            trained_model = self.get_trained_model_path()
+                return self.run_and_train_model_multi_gpu()
 
         print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Skipping training.")
         return self.evaluate_pre_trained_model(trained_model)
@@ -211,6 +210,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--dataset", type=str, help=f"Dataset to use: {datasets}")
     parser.add_argument("-m", "--method", type=str, help=f"Method to use: {methods}")
     parser.add_argument("-r", "--retrain", type=bool, help=f"Ignore pre-trained model and retrain", default=False)
+    parser.add_argument("-e", "--evaluate", type=bool, help=f"Evaluate the selected model", default=False)
     args = parser.parse_args()
 
     if not args.dataset:
@@ -236,6 +236,15 @@ if __name__ == "__main__":
     np.unicode = np.str_
 
     print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
-    runner = RecboleRunner(args.method, args.dataset, config_file, eval_config_file, config_dictionary, args.retrain)
-    evaluation_results = runner.run_and_evaluate_model()
-    runner.save_metrics_results(evaluation_results)
+
+    if args.evaluate:
+        runner = RecboleRunner(args.method, args.dataset, config_file, eval_config_file, config_dictionary, args.retrain)
+        model_path = runner.get_trained_model_path()
+        if model_path is None:
+            print(f"Model {args.method} has not been trained on dataset {args.dataset}. Exiting...")
+        evaluation_results = runner.evaluate_pre_trained_model(model_path)
+        runner.save_metrics_results(evaluation_results)
+    else:
+        runner = RecboleRunner(args.method, args.dataset, config_file, eval_config_file, config_dictionary, args.retrain)
+        evaluation_results = runner.run_and_evaluate_model()
+        runner.save_metrics_results(evaluation_results)
