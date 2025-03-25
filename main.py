@@ -57,7 +57,6 @@ class RecboleRunner:
         self.retrain = retrain
 
         # Configuration for distributed training
-        self.config_dict["world_size"] = config_dict["nproc"]
         self.config_dict["offset"] = 0
         self.config_dict["ip"] = "127.0.0.1"
         self.config_dict["port"] = str(find_available_port(5670, 5680))
@@ -110,7 +109,7 @@ class RecboleRunner:
         print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Skipping training.")
         return self.evaluate_pre_trained_model(trained_model)
 
-    def get_available_cuda_gpus(self):
+    def get_available_cuda_gpus(self, max_gpus: int = None) -> List[str]:
         """
         Get all available CUDA GPUs
         :return: ``List[str]`` The list of available GPUs
@@ -118,7 +117,11 @@ class RecboleRunner:
         if torch.cuda.is_available():
             gpus = [f"{torch.cuda.get_device_name(i)} - {i}" for i in range(torch.cuda.device_count())]
             print(f"GPU(s) available({len(gpus)}): {gpus}")
+            if max_gpus is not None and len(gpus) > max_gpus:
+                gpus = gpus[:max_gpus]
+                print(f"Using only {max_gpus} GPU(s): {gpus}")
             self.config_dict["nproc"] = len(gpus)
+            self.config_dict["world_size"] = self.config_dict["nproc"]
         else:
             print("No GPU available. Exiting.")
             exit(0)
@@ -158,6 +161,7 @@ class RecboleRunner:
         :return: ``Dict[str, Any]`` The evaluation results
         """
         logger = getLogger()
+        self.gpus = self.get_available_cuda_gpus(1)
 
         dist.init_process_group(backend='nccl', init_method=f'tcp://{self.config_dict["ip"]}:{self.config_dict["port"]}', world_size=self.config_dict["nproc"], rank=0)
         config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset(self.eval_config)
