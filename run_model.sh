@@ -3,8 +3,8 @@ DATASET="$1"
 MODEL="$2"
 GPUS="${3:-4}"
 MEMORY="$((GPUS * 32))G"
-JOB_NAME="Rec-${MODEL}-${DATASET}"
-OUTPUT_FILE="${DATASET}-${MODEL}.log"
+JOB_NAME="Rec-${MODEL}-${DATASET}-Training"
+OUTPUT_FILE="${DATASET}-${MODEL}-Training.log"
 CPUS="$((GPUS * 10))"
 NODE="${4:-}"
 
@@ -20,8 +20,8 @@ if [ -n "$NODE" ]; then
   echo "  Node:           $NODE"
 fi
 
-sbatch_command="sbatch --job-name=\"$JOB_NAME-Training\" \
-       --output=\"$OUTPUT_FILE-Training\" \
+sbatch_command="sbatch --job-name=\"$JOB_NAME\" \
+       --output=\"$OUTPUT_FILE\" \
        --gres=gpu:$GPUS \
        --mem=$MEMORY \
        --cpus-per-task=$CPUS"
