@@ -850,7 +850,7 @@ class Exposure(AbstractMetric):
         splits = [0.50, 0.80, 0.90, 0.99]
         for split in splits:
             disparity_exposure = self.exposure_disparity_popularity(exposure, items, split)
-            results.update(self.normalize_at_k(disparity_exposure, num_users, len(items), f"{int(split*100)}-{int((1-split)*100)}"))
+            results.update(self.normalize_at_k(disparity_exposure, num_users, len(items), f"{int(split*100)}-{int(100-(split*100))}"))
 
         return results
 
