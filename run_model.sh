@@ -5,7 +5,7 @@ GPUS="${3:-4}"
 MEMORY="$((GPUS * 32))G"
 JOB_NAME="Rec-${MODEL}-${DATASET}"
 OUTPUT_FILE="${DATASET}-${MODEL}.log"
-CPUS="15"
+CPUS="$((GPUS * 10))"
 NODE="${4:-}"
 
 echo "Submitting job with the following parameters:"
