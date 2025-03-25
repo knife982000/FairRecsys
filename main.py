@@ -26,6 +26,7 @@ config_dictionary = {
     "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty", "RecommendedGraph"]
 }
 config_file = ["config.yaml"]
+eval_config_file = ["eval_config.yaml"]
 
 
 def find_available_port(start: int, end: int) -> int:
@@ -45,11 +46,12 @@ def find_available_port(start: int, end: int) -> int:
 
 
 class RecboleRunner:
-    def __init__(self, model_name: str, dataset_name: str, config_file_list: List[str] = None, config_dict: Dict[str, Any] = None, retrain: bool = False):
+    def __init__(self, model_name: str, dataset_name: str, config_file_list: List[str] = None, eval_config_file_list: List[str] = None, config_dict: Dict[str, Any] = None, retrain: bool = False):
         self.model_name = model_name
         self.dataset_name = dataset_name
         self.config_dict = config_dict if config_dict is not None else {}
         self.config_file = config_file_list if config_file_list is not None else []
+        self.eval_config = eval_config_file_list if config_file_list is not None else []
         self.config = Config(model=model_name, dataset=dataset_name, config_dict=self.config_dict, config_file_list=self.config_file)
         self.gpus = self.get_available_cuda_gpus()
         self.retrain = retrain
@@ -135,12 +137,12 @@ class RecboleRunner:
             return False
         return True
 
-    def get_model_and_dataset(self):
+    def get_model_and_dataset(self, config_file_list: List[str]):
         """
         Get and initialise the Random model
         :return: ``Tuple[Config, torch.nn.Module, Dataset, Data, Data, Data]`` The configuration, model, dataset, train data, validation data and test data
         """
-        config = Config(model=self.model_name, dataset=self.dataset_name, config_dict=self.config_dict, config_file_list=self.config_file)
+        config = Config(model=self.model_name, dataset=self.dataset_name, config_dict=self.config_dict, config_file_list=config_file_list)
         init_seed(config["seed"], config["reproducibility"])
 
         dataset = create_dataset(config)
@@ -159,21 +161,12 @@ class RecboleRunner:
         logger = getLogger()
 
         dist.init_process_group(backend='nccl', init_method=f'tcp://{self.config_dict["ip"]}:{self.config_dict["port"]}', world_size=self.config_dict["nproc"], rank=0)
-        config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset()
-
-        config["nproc"] = self.config_dict["nproc"]
-
-        # Set evaluation to full mode
-        config["eval_args"] = {'split': {'RS': [0.8, 0.1, 0.1]}, 'order': 'RO', 'group_by': 'user', 'mode': {'valid': 'full', 'test': 'full'}}
-        config["metric_decimal_place"] = 10
-
-        # Ensures the correct GPUs are used instead of the ones used during training
-        config["gpu_id"] = self.config["gpu_id"]
-        config["epochs"] = 0
+        config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset(self.eval_config)
 
         is_not_random = config["model"] != "Random"
 
-        logger.info(f"Adjusted config: \n{config}")
+        logger.info(f"Evaluation config:")
+        logger.info(config)
         trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
         if is_not_random:
             trainer.resume_checkpoint(model_path)
@@ -242,7 +235,7 @@ if __name__ == "__main__":
     np.complex = np.complex128
     np.unicode = np.str_
 
-    print(f"\n\n\n------------- Running Recbole -------------\nArguments given: {args}\n\n\n")
-    runner = RecboleRunner(args.method, args.dataset, config_file, config_dictionary, args.retrain)
+    print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
+    runner = RecboleRunner(args.method, args.dataset, config_file, eval_config_file, config_dictionary, args.retrain)
     evaluation_results = runner.run_and_evaluate_model()
     runner.save_metrics_results(evaluation_results)
