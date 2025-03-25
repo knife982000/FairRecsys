@@ -5,6 +5,6 @@ for MODEL in "BPR" "LightGCN" "NGCF" "MultiVAE" "Random"; do
     if [ "$MODEL" == "MultiVAE" ] && [ "$DATASET" != "ml-1m" ]; then
       continue
     fi
-    python3 main.py -d "$DATASET" -m "$MODEL"
+    python3 main.py -d "$DATASET" -m "$MODEL" -e True
   done
 done
