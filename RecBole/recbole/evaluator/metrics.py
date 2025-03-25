@@ -863,6 +863,8 @@ class RecommendedGraph(AbstractMetric):
     def __init__(self, config):
         super().__init__(config)
         self.topk = config["topk"]
+        self.save_directory = f"./metrics_results/{config["dataset"]}/"
+        self.save_name = f"{config["model"]}.json"
 
     def used_info(self, dataobject):
         rec_items = dataobject.get("rec.items")
@@ -886,19 +888,18 @@ class RecommendedGraph(AbstractMetric):
         :param data: ``Dict`` of data to be saved
         :return: ``str`` path to the saved file
         """
-        path = f"./metrics_results/" + datetime.now().strftime("%Y_%m_%d_%H_%M_%S") + ".json"
-        os.makedirs(os.path.dirname("./metrics_results/"), exist_ok=True)
+        path = f"{self.save_directory}{self.save_name}"
+        os.makedirs(os.path.dirname(self.save_directory), exist_ok=True)
 
         with open(path, "w") as file:
             json.dump(data, file)
-        return path
 
     def calculate_metric(self, dataobject):
         items, exposure, num_items, num_users = self.used_info(dataobject)
         fair_exposure = (num_users * self.topk[0]) / num_items
-        path = self.save_plot_data({"plot_data": exposure.tolist(), "num_items": num_items, "fair_exposure" : fair_exposure})
-
-        return {"plot_data": path}
+        self.save_plot_data({"plot_data": exposure.tolist(), "num_items": num_items, "fair_exposure" : fair_exposure})
+        # Data gets saved to a seperate file due to its size, no need to return anything
+        return {}
 
 
 class Novelty(AbstractMetric):
