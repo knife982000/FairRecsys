@@ -17,18 +17,20 @@ from recbole.model.loss import BPRLoss
 from recbole.utils import InputType
 
 
-class BPR(GeneralRecommender):
-    r"""BPR with Zipf's penalty to reduce popularity bias."""
-    """Math for Zipf's Penalty: 
-    s=1+n(\sum_{i=1}^{n}ln(\frac{x_i}{x_{max}}))^{-1}"""
+class BPRZipf(GeneralRecommender):
+    r"""
+    BPR with Zipf's penalty to reduce popularity bias.
+    Math for Zipf's Penalty:
+    s=1+n(\sum_{i=1}^{n}ln(\frac{x_i}{x_{max}}))^{-1}
+    """
     input_type = InputType.PAIRWISE
 
     def __init__(self, config, dataset):
-        super(BPR, self).__init__(config, dataset)
+        super(BPRZipf, self).__init__(config, dataset)
 
         # Load parameters info
         self.embedding_size = config["embedding_size"]
-        self.zipf_alpha = config.get("zipf_alpha", 0.1)  # Strength of Zipf's penalty this needs to be tweaked somehow to find the optimal. ie make the factor global and tweak it during training
+        self.zipf_alpha = config["zipf_alpha"]  # Strength of Zipf's penalty this needs to be tweaked somehow to find the optimal. ie make the factor global and tweak it during training
 
         # Define layers and loss
         self.user_embedding = nn.Embedding(self.n_users, self.embedding_size)
