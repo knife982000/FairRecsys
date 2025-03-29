@@ -1,4 +1,3 @@
-
 r"""
 BPR with Zipf's Penalty
 ################################################
@@ -44,15 +43,19 @@ class BPRZipf(GeneralRecommender):
         self.apply(xavier_normal_initialization)
 
     def build_item_popularity(self, dataset):
-        """Precompute item popularity based on dataset interactions. this might not be necessary depending on the implementation."""
+        """Precompute item popularity based on dataset interactions."""
         item_counts = torch.zeros(self.n_items, device=self.device)
-        
-        for interaction in dataset.inter_feat:
-            item_counts[interaction[self.ITEM_ID]] += 1
-        
+
+        # Iterate through all interactions in the dataset
+        item_ids = dataset.inter_feat[self.ITEM_ID]
+
+        # Count occurrences of each item
+        for item_id in item_ids:
+            item_counts[item_id] += 1
+
         # Normalize popularity to avoid extreme values
-        self.item_popularity = item_counts / item_counts.sum()   # calculate x_i/x_max
-        self.item_popularity = self.item_popularity.clamp(min=1e-6)  # Avoid log(0), necessary for log scaling. 
+        self.item_popularity = item_counts / item_counts.sum()  # Calculate x_i / x_max
+        self.item_popularity = self.item_popularity.clamp(min=1e-6)  # Avoid log(0)
 
     def get_user_embedding(self, user):
         return self.user_embedding(user)
