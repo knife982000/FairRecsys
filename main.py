@@ -10,8 +10,9 @@ import torch
 
 from RecBole.recbole.config.configurator import Config
 from RecBole.recbole.data.utils import create_dataset, data_preparation
+from RecBole.recbole.model.general_recommender.bpr_test import BPRTest
 from RecBole.recbole.utils import get_trainer, set_color
-from RecBole.recbole.utils.utils import init_seed, get_model
+from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
 
 ##################################
 ######### Configurations #########
@@ -19,35 +20,17 @@ from RecBole.recbole.utils.utils import init_seed, get_model
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = {"BPR": None, "LightGCN": None, "NGCF": None, "MultiVAE": None, "Random": None, "BPRZipf": BPRZipf}
+methods = {"BPR": None, "LightGCN": None, "NGCF": None, "MultiVAE": None, "Random": None, "BPRTest": BPRTest}
 datasets = ["ml-100k", "ml-1m", "ml-20m", "gowalla-merged", "steam-merged"]
 config_dictionary = {
-    "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty",
-                "RecommendedGraph"]
+    "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty", "RecommendedGraph"]
 }
 config_file = ["config.yaml"]
 eval_config_file = ["eval_config.yaml"]
 
 
-def find_available_port(start: int, end: int) -> int:
-    """
-    Find an available port in the specified range
-    :param start: ``int`` The start of the port range
-    :param end: ``int`` The end of the port range
-    """
-    import socket
-    for port in range(start, end + 1):
-        # Try to connect to the port, if it fails (doesn't return 0), the port is available
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            if s.connect_ex(("127.0.0.1", port)) != 0:
-                print(f"Binding to 127.0.0.1:{port} for multi-GPU training")
-                return port
-    raise RuntimeError("No available ports in the specified range")
-
-
 class RecboleRunner:
-    def __init__(self, model_name: str, dataset_name: str, config_file_list: List[str] = None,
-                 config_dict: Dict[str, Any] = None, retrain: bool = False):
+    def __init__(self, model_name: str, dataset_name: str, config_file_list: List[str] = None, config_dict: Dict[str, Any] = None, retrain: bool = False):
         self.model_name = model_name
         self.dataset_name = dataset_name
         self.config_dict = config_dict if config_dict is not None else {}
@@ -74,15 +57,36 @@ class RecboleRunner:
                     return self.config_dict["checkpoint_dir"] + "/" + saved_model
         return None
 
+    def get_model_name_or_class(self) -> str | object:
+        """
+        Get the model name or class if custom model
+        :return: ``str | object`` The model name or class
+        """
+        if methods[self.model_name] is None:
+            return self.model_name
+        return methods[self.model_name]
+
     def create_config(self, model=None, config_dict: Dict[str, Any] = None,
                       config_file_list: List[str] = None) -> Config:
-        model = model if model is not None else self.model_name
+        """
+        Creates a configuration for the model
+        :param model: ``str`` The model name
+        :param config_dict: ``Dict[str, Any]`` The configuration dictionary
+        :param config_file_list: ``List[str]`` The list of configuration files
+        :return: ``Config`` The configuration
+        """
+        model = model if model is not None else self.get_model_name_or_class()
         config_dict = config_dict if config_dict is not None else self.config_dict
         config_file_list = config_file_list if config_file_list is not None else self.config_file_list
-        return Config(model=model, dataset=self.dataset_name, config_dict=config_dict,
-                      config_file_list=config_file_list)
+        return Config(model=model, dataset=self.dataset_name, config_dict=config_dict, config_file_list=config_file_list)
 
-    def run_recbole(self, queue=None) -> None:
+    def run_recbole(self, queue=None) -> dict[str, Any]:
+        """
+        Runs recbole, based on the run function from RecBole in "recbole.quick_start.quick_start"
+        Changed to work with custom models and removed evaluation of the model after training
+        :param queue: ``mp.SimpleQueue`` The queue for multiprocessing
+        :return: ``dict[str, Any]`` The training results
+        """
         logger = getLogger()
         config, model, dataset, train_data, valid_data, test_test = self.get_model_and_dataset()
 
@@ -109,8 +113,7 @@ class RecboleRunner:
 
         if config["local_rank"] == 0 and queue is not None:
             queue.put(result)  # for multiprocessing, e.g., mp.spawn
-
-        return result  # for the single process
+        return result
 
     def run_recbole_multi_gpu(self) -> Dict[str, Any]:
         """
@@ -255,6 +258,22 @@ class RecboleRunner:
 
         with open(path, "w") as file:
             json.dump(all_results, file)
+
+
+def find_available_port(start: int, end: int) -> int:
+    """
+    Find an available port in the specified range
+    :param start: ``int`` The start of the port range
+    :param end: ``int`` The end of the port range
+    """
+    import socket
+    for port in range(start, end + 1):
+        # Try to connect to the port, if it fails (doesn't return 0), the port is available
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            if s.connect_ex(("127.0.0.1", port)) != 0:
+                print(f"Binding to 127.0.0.1:{port} for multi-GPU training")
+                return port
+    raise RuntimeError("No available ports in the specified range")
 
 
 if __name__ == "__main__":
