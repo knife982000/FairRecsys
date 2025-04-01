@@ -10,7 +10,7 @@ import torch
 
 from RecBole.recbole.config.configurator import Config
 from RecBole.recbole.data.utils import create_dataset, data_preparation
-from RecBole.recbole.model.general_recommender.bpr_test import BPRTest
+from RecBole.recbole.model.general_recommender.bpr_zipf import BPRZipf
 from RecBole.recbole.utils import get_trainer, set_color
 from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
 
@@ -20,7 +20,7 @@ from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = {"BPR": None, "LightGCN": None, "NGCF": None, "MultiVAE": None, "Random": None, "BPRTest": BPRTest}
+methods = {"BPR": None, "LightGCN": None, "NGCF": None, "MultiVAE": None, "Random": None, "BPRZipf": BPRZipf}
 datasets = ["ml-100k", "ml-1m", "ml-20m", "gowalla-merged", "steam-merged"]
 config_dictionary = {
     "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty", "RecommendedGraph"]
@@ -123,8 +123,8 @@ class RecboleRunner:
         queue = mp.get_context("spawn").SimpleQueue()
         mp.spawn(self.run_recbole, args=queue, nprocs=self.config_dict["nproc"], join=True)
 
-        res = None if queue.empty() else queue.get()
-        return res
+        result = None if queue.empty() else queue.get()
+        return result
 
     def run_and_evaluate_model(self) -> Dict[str, Any]:
         """
@@ -137,10 +137,8 @@ class RecboleRunner:
         trained_model = self.get_trained_model_path()
         if trained_model is None or self.retrain:
             if len(self.gpus) == 1:
-                self.run_recbole()
-            else:
-                self.run_recbole_multi_gpu()
-            trained_model = self.get_trained_model_path()
+                return self.run_recbole()
+            return self.run_recbole_multi_gpu()
 
         print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Skipping training.")
         return self.evaluate_pre_trained_model(trained_model)
@@ -202,9 +200,6 @@ class RecboleRunner:
         """
         logger = getLogger()
 
-        dist.init_process_group(backend='nccl',
-                                init_method=f'tcp://{self.config_dict["ip"]}:{self.config_dict["port"]}',
-                                world_size=self.config_dict["nproc"], rank=0)
         config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset()
 
         config["nproc"] = self.config_dict["nproc"]
@@ -297,6 +292,9 @@ if __name__ == "__main__":
         print(f"Method {args.method} not supported. Supported methods: {methods.keys()}")
         exit(1)
 
+    if args.evaluate:
+        config_file = eval_config_file
+
     if args.dataset == "steam-merged":
         config_file.append("config_steam.yaml")
 
@@ -311,17 +309,3 @@ if __name__ == "__main__":
     runner = RecboleRunner(args.method, args.dataset, config_file, config_dictionary, args.retrain)
     evaluation_results = runner.run_and_evaluate_model()
     runner.save_metrics_results(evaluation_results)
-
-    print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
-
-    if args.evaluate:
-        runner = RecboleRunner(args.method, args.dataset, config_file, eval_config_file, config_dictionary, args.retrain)
-        model_path = runner.get_trained_model_path()
-        if model_path is None:
-            print(f"Model {args.method} has not been trained on dataset {args.dataset}. Exiting...")
-        evaluation_results = runner.evaluate_pre_trained_model(model_path)
-        runner.save_metrics_results(evaluation_results)
-    else:
-        runner = RecboleRunner(args.method, args.dataset, config_file, eval_config_file, config_dictionary, args.retrain)
-        evaluation_results = runner.run_and_evaluate_model()
-        runner.save_metrics_results(evaluation_results)
