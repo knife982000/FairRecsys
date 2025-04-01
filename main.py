@@ -10,7 +10,7 @@ import torch
 
 from RecBole.recbole.config.configurator import Config
 from RecBole.recbole.data.utils import create_dataset, data_preparation
-from RecBole.recbole.model.general_recommender.bpr_test import BPRTest
+from RecBole.recbole.model.general_recommender.bpr_zipf import BPRZipf
 from RecBole.recbole.utils import get_trainer, set_color
 from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
 
@@ -20,7 +20,7 @@ from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = {"BPR": None, "LightGCN": None, "NGCF": None, "MultiVAE": None, "Random": None, "BPRTest": BPRTest}
+methods = {"BPR": None, "LightGCN": None, "NGCF": None, "MultiVAE": None, "Random": None, "BPRZipf": BPRZipf}
 datasets = ["ml-100k", "ml-1m", "ml-20m", "gowalla-merged", "steam-merged"]
 config_dictionary = {
     "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty", "RecommendedGraph"]
