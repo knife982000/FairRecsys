@@ -26,6 +26,7 @@ config_dictionary = {
                 "RecommendedGraph"]
 }
 config_file = ["config.yaml"]
+eval_config_file = ["eval_config.yaml"]
 
 
 def find_available_port(start: int, end: int) -> int:
@@ -56,10 +57,10 @@ class RecboleRunner:
         self.retrain = retrain
 
         # Configuration for distributed training
-        self.config_dict["world_size"] = config_dict["nproc"]
         self.config_dict["offset"] = 0
         self.config_dict["ip"] = "127.0.0.1"
         self.config_dict["port"] = str(find_available_port(5670, 5680))
+        self.config_dict["checkpoint_dir"] = model_folder + self.dataset_name
 
     def get_trained_model_path(self) -> Optional[str]:
         """
@@ -127,7 +128,6 @@ class RecboleRunner:
         Run and evaluate the model on the specified dataset
         :return: ``Dict[str, Any]`` The evaluation results
         """
-        self.config_dict["checkpoint_dir"] = model_folder + self.dataset_name
         if self.model_name == "Random":
             return self.evaluate_pre_trained_model("")
 
@@ -142,7 +142,7 @@ class RecboleRunner:
         print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Skipping training.")
         return self.evaluate_pre_trained_model(trained_model)
 
-    def get_available_cuda_gpus(self):
+    def get_available_cuda_gpus(self, max_gpus: int = None) -> List[str]:
         """
         Get all available CUDA GPUs
         :return: ``List[str]`` The list of available GPUs
@@ -150,7 +150,11 @@ class RecboleRunner:
         if torch.cuda.is_available():
             gpus = [f"{torch.cuda.get_device_name(i)} - {i}" for i in range(torch.cuda.device_count())]
             print(f"GPU(s) available({len(gpus)}): {gpus}")
+            if max_gpus is not None and len(gpus) > max_gpus:
+                gpus = gpus[:max_gpus]
+                print(f"Using only {max_gpus} GPU(s): {gpus}")
             self.config_dict["nproc"] = len(gpus)
+            self.config_dict["world_size"] = self.config_dict["nproc"]
         else:
             print("No GPU available. Exiting.")
             exit(0)
@@ -258,6 +262,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--dataset", type=str, help=f"Dataset to use: {datasets}")
     parser.add_argument("-m", "--method", type=str, help=f"Method to use: {methods.keys()}")
     parser.add_argument("-r", "--retrain", type=bool, help=f"Ignore pre-trained model and retrain", default=False)
+    parser.add_argument("-e", "--evaluate", type=bool, help=f"Evaluate the selected model", default=False)
     args = parser.parse_args()
 
     if not args.dataset:
@@ -287,3 +292,17 @@ if __name__ == "__main__":
     runner = RecboleRunner(args.method, args.dataset, config_file, config_dictionary, args.retrain)
     evaluation_results = runner.run_and_evaluate_model()
     runner.save_metrics_results(evaluation_results)
+
+    print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
+
+    if args.evaluate:
+        runner = RecboleRunner(args.method, args.dataset, config_file, eval_config_file, config_dictionary, args.retrain)
+        model_path = runner.get_trained_model_path()
+        if model_path is None:
+            print(f"Model {args.method} has not been trained on dataset {args.dataset}. Exiting...")
+        evaluation_results = runner.evaluate_pre_trained_model(model_path)
+        runner.save_metrics_results(evaluation_results)
+    else:
+        runner = RecboleRunner(args.method, args.dataset, config_file, eval_config_file, config_dictionary, args.retrain)
+        evaluation_results = runner.run_and_evaluate_model()
+        runner.save_metrics_results(evaluation_results)
