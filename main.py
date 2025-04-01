@@ -305,7 +305,7 @@ if __name__ == "__main__":
     np.complex = np.complex128
     np.unicode = np.str_
 
-    print(f"\n\n\n------------- Running Recbole -------------\nArguments given: {args}\n\n\n")
+    print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
     runner = RecboleRunner(args.method, args.dataset, config_file, config_dictionary, args.retrain)
     evaluation_results = runner.run_and_evaluate_model()
     runner.save_metrics_results(evaluation_results)
