@@ -29,7 +29,9 @@ class BPRZipf(GeneralRecommender):
 
         # Load parameters info
         self.embedding_size = config["embedding_size"]
-        self.zipf_alpha = config["zipf_alpha"]  # Strength of Zipf's penalty this needs to be tweaked somehow to find the optimal. ie make the factor global and tweak it during training
+
+        # Strength of Zipf's penalty this needs to be tweaked somehow to find the optimal. ie make the factor global and tweak it during training
+        self.zipf_alpha = config["zipf_alpha"] if "zipf_alpha" in config else 0.01
 
         # Define layers and loss
         self.user_embedding = nn.Embedding(self.n_users, self.embedding_size)
