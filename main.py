@@ -80,18 +80,20 @@ class RecboleRunner:
         config_file_list = config_file_list if config_file_list is not None else self.config_file_list
         return Config(model=model, dataset=self.dataset_name, config_dict=config_dict, config_file_list=config_file_list)
 
-    def run_recbole(self, fn = None, id: int = None, queue = None) -> dict[str, Any]:
+    def run_recbole(self, rank: int, queue: mp.SimpleQueue) -> dict[str, Any]:
         """
         Runs recbole, based on the run function from RecBole in "recbole.quick_start.quick_start"
         Changed to work with custom models and removed evaluation of the model after training
-        :param fn: ``Any`` The function ran by the process
-        :param id: ``int`` The id of the process
+        :param rank: ``int`` The rank of the process
         :param queue: ``mp.SimpleQueue`` The queue for multiprocessing
         :return: ``dict[str, Any]`` The training results
         """
         logger = getLogger()
-        config, model, dataset, train_data, valid_data, test_test = self.get_model_and_dataset()
-        logger.info(f"Function {fn} with id {id} started")
+        config_dict = self.config_dict
+        config_dict["local_rank"] = rank
+
+        config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset(config_dict=config_dict)
+        logger.info(f"Process with rank {rank} started")
         logger.info(config)
 
         trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
@@ -110,11 +112,9 @@ class RecboleRunner:
 
         result = {"best_valid_score": best_valid_score, "best_valid_result": best_valid_result}
 
-        if not config["single_spec"]:
-            dist.destroy_process_group()
-
-        if config["local_rank"] == 0 and queue is not None:
+        if rank == 0:
             queue.put(result)  # for multiprocessing, e.g., mp.spawn
+        dist.destroy_process_group()
         return result
 
     def run_recbole_multi_gpu(self) -> Dict[str, Any]:
@@ -123,7 +123,7 @@ class RecboleRunner:
         Based on run function from RecBole in "recbole.quick_start.quick_start"
         """
         queue = mp.get_context("spawn").SimpleQueue()
-        mp.spawn(self.run_recbole, args=[queue], nprocs=self.config_dict["nproc"], join=True)
+        mp.spawn(self.run_recbole, args=(queue,), nprocs=self.config_dict["nproc"], join=True)
 
         result = None if queue.empty() else queue.get()
         return result
@@ -175,24 +175,25 @@ class RecboleRunner:
             return False
         return True
 
-    def get_model_and_dataset(self):
+    def get_model_and_dataset(self, model=None, config_dict: Dict[str, Any] = None, config_file_list: List[str] = None):
         """
         Get and initialise the Random model
         :return: ``Tuple[Config, torch.nn.Module, Dataset, Data, Data, Data]`` The configuration, model, dataset, train data, validation data and test data
         """
-        config = self.create_config()
-        init_seed(config["seed"] + config["local_rank"], config["reproducibility"])
+        config = self.create_config(model, config_dict, config_file_list)
+        init_seed(config["seed"], config["reproducibility"])
 
         dataset = create_dataset(config)
         train_data, valid_data, test_data = data_preparation(config, dataset)
 
+        init_seed(config["seed"] + config["local_rank"], config["reproducibility"])
         if methods[config["model"]] == None:
             model_class = get_model(config["model"])
         else:
             model_class = methods[config["model"]]
-        model = model_class(config, train_data._dataset).to(config["device"])
+        model_class = model_class(config, train_data._dataset).to(config["device"])
 
-        return config, model, dataset, train_data, valid_data, test_data
+        return config, model_class, dataset, train_data, valid_data, test_data
 
     def evaluate_pre_trained_model(self, model_path: str) -> Dict[str, Any]:
         """
