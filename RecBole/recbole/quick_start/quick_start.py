@@ -136,10 +136,7 @@ def run_recbole(
 
     # model loading and initialization
     init_seed(config["seed"] + config["local_rank"], config["reproducibility"])
-    if config["model"] == "BPRZipf":
-        model = BPRZipf(config, train_data._dataset).to(config["device"])
-    else:
-        model = get_model(config["model"])(config, train_data._dataset).to(config["device"])
+    model = get_model(config["model"])(config, train_data._dataset).to(config["device"])
     logger.info(model)
 
     transform = construct_transform(config)
