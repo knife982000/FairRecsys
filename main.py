@@ -80,16 +80,18 @@ class RecboleRunner:
         config_file_list = config_file_list if config_file_list is not None else self.config_file_list
         return Config(model=model, dataset=self.dataset_name, config_dict=config_dict, config_file_list=config_file_list)
 
-    def run_recbole(self, queue=None) -> dict[str, Any]:
+    def run_recbole(self, fn=None, id:int=None, queue=None) -> dict[str, Any]:
         """
         Runs recbole, based on the run function from RecBole in "recbole.quick_start.quick_start"
         Changed to work with custom models and removed evaluation of the model after training
+        :param fn: ``Any`` The function ran by the process
+        :param id: ``int`` The id of the process
         :param queue: ``mp.SimpleQueue`` The queue for multiprocessing
         :return: ``dict[str, Any]`` The training results
         """
         logger = getLogger()
         config, model, dataset, train_data, valid_data, test_test = self.get_model_and_dataset()
-
+        logger.info(f"Function {fn} with id {id} started")
         logger.info(config)
 
         trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
