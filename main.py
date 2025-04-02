@@ -80,7 +80,7 @@ class RecboleRunner:
         config_file_list = config_file_list if config_file_list is not None else self.config_file_list
         return Config(model=model, dataset=self.dataset_name, config_dict=config_dict, config_file_list=config_file_list)
 
-    def run_recbole(self, fn=None, id:int=None, queue=None) -> dict[str, Any]:
+    def run_recbole(self, fn = None, id: int = None, queue = None) -> dict[str, Any]:
         """
         Runs recbole, based on the run function from RecBole in "recbole.quick_start.quick_start"
         Changed to work with custom models and removed evaluation of the model after training
@@ -123,7 +123,7 @@ class RecboleRunner:
         Based on run function from RecBole in "recbole.quick_start.quick_start"
         """
         queue = mp.get_context("spawn").SimpleQueue()
-        mp.spawn(self.run_recbole, args=queue, nprocs=self.config_dict["nproc"], join=True)
+        mp.spawn(self.run_recbole, args=[queue], nprocs=self.config_dict["nproc"], join=True)
 
         result = None if queue.empty() else queue.get()
         return result
