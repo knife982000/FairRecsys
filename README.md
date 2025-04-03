@@ -2,7 +2,31 @@
 
 Using [RecBole](https://github.com/RUCAIBox/RecBole)
 
+## Running Recbole
+```bash
+# All flags can be seen using -h
+python3 main.py -h
+```
+```bash
+# Training
+python3 main.py -d <dataset> -m <model>
+```
+```bash
+# Evaluation
+python3 main.py -d <dataset> -m <model> -e True
+```
+
 ## Environment
+### Local Linux Install
+1. Install packages (requires apt-get):
+```bash
+bash local_install.sh
+```
+2. Download datasets:
+```bash
+bash download_datasets.sh
+```
+
 ### Using Slurm and Singularity
 1. Start a session on a compute node:
 ```bash
