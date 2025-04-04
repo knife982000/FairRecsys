@@ -20,7 +20,7 @@ python3 main.py -d <dataset> -m <model> -e True
 ### Local Linux Install
 1. Install packages (requires apt-get):
 ```bash
-bash local_install.sh
+bash install_local.sh
 ```
 2. Download datasets:
 ```bash
