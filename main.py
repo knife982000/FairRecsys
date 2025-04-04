@@ -53,7 +53,7 @@ class RecboleRunner:
         if os.path.isdir(self.config_dict["checkpoint_dir"]):
             saved_models = os.listdir(self.config_dict["checkpoint_dir"])
             for saved_model in saved_models:
-                if saved_model.find(self.model_name) != -1:
+                if saved_model == f"{self.model_name}.pth":
                     return self.config_dict["checkpoint_dir"] + "/" + saved_model
         return None
 
@@ -113,9 +113,10 @@ class RecboleRunner:
 
         result = {"best_valid_score": best_valid_score, "best_valid_result": best_valid_result}
 
-        if rank is not None and rank == 0:
-            queue.put(result)  # for multiprocessing, e.g., mp.spawn
-        dist.destroy_process_group()
+        if rank is not None:
+            if rank == 0:
+                queue.put(result)  # for multiprocessing, e.g., mp.spawn
+            dist.destroy_process_group()
         return result
 
     def run_recbole_multi_gpu(self) -> Dict[str, Any]:
