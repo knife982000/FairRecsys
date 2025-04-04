@@ -80,7 +80,7 @@ class RecboleRunner:
         config_file_list = config_file_list if config_file_list is not None else self.config_file_list
         return Config(model=model, dataset=self.dataset_name, config_dict=config_dict, config_file_list=config_file_list)
 
-    def run_recbole(self, rank: int, queue: mp.SimpleQueue) -> dict[str, Any]:
+    def run_recbole(self, rank: int = None, queue: mp.SimpleQueue = None) -> dict[str, Any]:
         """
         Runs recbole, based on the run function from RecBole in "recbole.quick_start.quick_start"
         Changed to work with custom models and removed evaluation of the model after training
@@ -90,10 +90,11 @@ class RecboleRunner:
         """
         logger = getLogger()
         config_dict = self.config_dict
-        config_dict["local_rank"] = rank
+        if rank is not None:
+            config_dict["local_rank"] = rank
+            logger.info(f"Process with rank {rank} started")
 
         config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset(config_dict=config_dict)
-        logger.info(f"Process with rank {rank} started")
         logger.info(config)
 
         trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
@@ -112,7 +113,7 @@ class RecboleRunner:
 
         result = {"best_valid_score": best_valid_score, "best_valid_result": best_valid_result}
 
-        if rank == 0:
+        if rank is not None and rank == 0:
             queue.put(result)  # for multiprocessing, e.g., mp.spawn
         dist.destroy_process_group()
         return result
