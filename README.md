@@ -24,7 +24,7 @@ bash install_local.sh
 ```
 2. Download datasets:
 ```bash
-bash download_datasets.sh
+bash dataset_download.sh
 ```
 
 ### Using Slurm and Singularity
