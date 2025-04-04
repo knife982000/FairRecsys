@@ -30,8 +30,8 @@ class BPRZipf(GeneralRecommender):
         # Load parameters info
         self.embedding_size = config["embedding_size"]
 
-        # Strength of Zipf's penalty this needs to be tweaked somehow to find the optimal. ie make the factor global and tweak it during training
-        self.zipf_alpha = config["zipf_alpha"] if "zipf_alpha" in config else 0.01
+        # Strength of Zipf's penalty
+        self.zipf_alpha = config["zipf_alpha"] if "zipf_alpha" in config else 0.1
 
         # Define layers and loss
         self.user_embedding = nn.Embedding(self.n_users, self.embedding_size)
@@ -46,18 +46,19 @@ class BPRZipf(GeneralRecommender):
 
     def build_item_popularity(self, dataset):
         """Precompute item popularity based on dataset interactions."""
-        item_counts = torch.zeros(self.n_items, device=self.device)
+        item_counts = torch.zeros(self.n_items, device=self.device, dtype=torch.float)
 
-        # Iterate through all interactions in the dataset
-        item_ids = dataset.inter_feat[self.ITEM_ID]
+        # Ensure item_ids is on the same device as item_counts
+        item_ids = dataset.inter_feat[self.ITEM_ID].to(self.device)
 
         # Count occurrences of each item
-        for item_id in item_ids:
-            item_counts[item_id] += 1
+        ones = torch.ones_like(item_ids, device=self.device, dtype=torch.float)
+        item_counts.scatter_add_(0, item_ids, ones)
 
         # Normalize popularity to avoid extreme values
-        self.item_popularity = item_counts / item_counts.sum()  # Calculate x_i / x_max
-        self.item_popularity = self.item_popularity.clamp(min=1e-6)  # Avoid log(0)
+        self.item_popularity = item_counts / item_counts.sum()
+        self.item_popularity = self.item_popularity.clamp(min=1e-6)
+        self.item_popularity *= 1e7  # Scale by a larger constant factor
 
     def get_user_embedding(self, user):
         return self.user_embedding(user)
@@ -80,15 +81,18 @@ class BPRZipf(GeneralRecommender):
 
         pos_item_score = torch.mul(user_e, pos_e).sum(dim=1)
         neg_item_score = torch.mul(user_e, neg_e).sum(dim=1)
-        
+
         # Compute standard BPR loss
         loss = self.loss(pos_item_score, neg_item_score)
-        
-        # Apply Zipf's penalty: log-scaled popularity discourages recommending frequent items
-        zipf_penalty = self.zipf_alpha * (
-            torch.log1p(self.item_popularity[pos_item]) + torch.log1p(self.item_popularity[neg_item])
-        )
-        loss += torch.mean(zipf_penalty)
+
+        # Compute Zipf's penalty based on the formula
+        x_max = self.item_popularity.max()
+        pos_penalty = torch.log(self.item_popularity[pos_item] / x_max)
+        neg_penalty = torch.log(self.item_popularity[neg_item] / x_max)
+        zipf_penalty = self.zipf_alpha * (1 + len(pos_item) * (pos_penalty + neg_penalty).sum().reciprocal())
+
+        # Add Zipf's penalty to the loss
+        loss += zipf_penalty
 
         return loss
 
@@ -106,6 +110,6 @@ class BPRZipf(GeneralRecommender):
 
         # Apply Zipf’s penalty to final predictions
         zipf_penalty = self.zipf_alpha * torch.log1p(self.item_popularity)
-        score -= zipf_penalty  # Subtract penalty from score
+        score -= zipf_penalty
 
         return score.view(-1)
