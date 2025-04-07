@@ -31,7 +31,7 @@ class BPRZipf(GeneralRecommender):
         self.embedding_size = config["embedding_size"]
 
         # Strength of Zipf's penalty
-        self.zipf_alpha = config["zipf_alpha"] if "zipf_alpha" in config else 0.1
+        self.zipf_alpha = torch.tensor(config["zipf_alpha"] if "zipf_alpha" in config else 0.1, device=self.device)
 
         # Define layers and loss
         self.user_embedding = nn.Embedding(self.n_users, self.embedding_size)
@@ -58,7 +58,7 @@ class BPRZipf(GeneralRecommender):
         # Normalize popularity to avoid extreme values
         self.item_popularity = item_counts / item_counts.sum()
         self.item_popularity = self.item_popularity.clamp(min=1e-6)
-        self.item_popularity *= 1e7  # Scale by a larger constant factor
+        self.item_popularity *= 1e7  
 
     def get_user_embedding(self, user):
         return self.user_embedding(user)
@@ -113,3 +113,7 @@ class BPRZipf(GeneralRecommender):
         score -= zipf_penalty
 
         return score.view(-1)
+
+    def get_zipf_alpha(self):
+        """Retrieve the current value of zipf_alpha."""
+        return self.zipf_alpha

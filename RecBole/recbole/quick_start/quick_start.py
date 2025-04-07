@@ -36,6 +36,8 @@ from recbole.utils import (
 )
 
 from RecBole.recbole.model.general_recommender.bpr_zipf import BPRZipf
+import json
+import os
 
 
 def run(
@@ -171,6 +173,25 @@ def run_recbole(
         "best_valid_result": best_valid_result,
         "test_result": test_result,
     }
+
+    # Save all results to a log file
+    results_file = os.path.join(config["checkpoint_dir"], "results.json")
+    if os.path.exists(results_file):
+        with open(results_file, "r") as f:
+            all_results = json.load(f)
+    else:
+        all_results = {}
+
+    if dataset not in all_results:
+        all_results[dataset] = {}
+    all_results[dataset][model] = {
+        "best_valid_score": best_valid_score,
+        "best_valid_result": best_valid_result,
+        "test_result": test_result
+    }
+
+    with open(results_file, "w") as f:
+        json.dump(all_results, f, indent=4)
 
     if not config["single_spec"]:
         dist.destroy_process_group()
