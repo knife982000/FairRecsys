@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
+from numpy.ma.core import append, argmax
 from recbole.model.abstract_recommender import GeneralRecommender
 from recbole.model.init import xavier_normal_initialization
 from recbole.model.loss import BPRLoss
@@ -56,6 +57,7 @@ class BPRMMRSim(GeneralRecommender):
         return torch.mul(user_e, item_e).sum(dim=1)
 
     def full_sort_predict(self, interaction):
+        # Get user embeddings and item embeddings
         user = interaction[self.USER_ID]
         user_e = self.get_user_embedding(user)
         all_item_e = self.item_embedding.weight
