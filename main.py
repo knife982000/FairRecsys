@@ -254,15 +254,12 @@ class RecboleRunner:
         if self.dataset_name not in all_results:
             all_results[self.dataset_name] = {}
 
-        # Save both the best valid result and the current result
-        all_results[self.dataset_name][self.model_name] = {
-            "best_valid_score": results.get("best_valid_score"),
-            "best_valid_result": results.get("best_valid_result"),
-            "current_result": results.get("test_result")
+        
+        all_results[self.dataset_name][self.model_name] = results
         }
 
         with open(path, "w") as file:
-            json.dump(all_results, file, indent=4)
+            json.dump(all_results, file)
 
 
 def find_available_port(start: int, end: int) -> int:
