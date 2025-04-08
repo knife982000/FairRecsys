@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from numpy.ma.core import append, argmax
 from recbole.model.abstract_recommender import GeneralRecommender
 from recbole.model.init import xavier_normal_initialization
 from recbole.model.loss import BPRLoss
 from recbole.utils import InputType
+from sympy.codegen.cnodes import sizeof
 
 
 class BPRMMRSim(GeneralRecommender):
@@ -15,7 +17,7 @@ class BPRMMRSim(GeneralRecommender):
 
         # load parameters info
         self.embedding_size = config["embedding_size"]
-        self.lambda_mmr = 0.7 # Trade-off between relevance and diversity
+        self.lambda_mmr = 0.3
 
         # define layers and loss
         self.user_embedding = nn.Embedding(self.n_users, self.embedding_size)
@@ -61,38 +63,76 @@ class BPRMMRSim(GeneralRecommender):
 
         scores = torch.matmul(user_e, all_item_e.transpose(0, 1))  # Shape: (batch_size, num_items)
 
+        topk_scores, topk_indices = torch.topk(scores, k=100, dim=1)
+        print("topk_scores shape:", topk_scores.shape)
+        print("topk_indices shape:", topk_indices.shape)
+
+        similarity_matrix = self.get_cosine_similarity(all_item_e)
+        print("similarity_matrix:", similarity_matrix)
+
         all_mmr_indices = []
 
-        for i in range(user_e.shape[0]):
-            user_emb = user_e[i].unsqueeze(0)  # [1, embedding_dim]
-            user_scores = scores[i].unsqueeze(0)  # [1, num_items]
-            mmr_topk = self.compute_mmr(user_emb, all_item_e, scores, user_scores, top_k=10)
+        num_users_to_process = max(2, user_e.shape[0])
+        for i in range(num_users_to_process):
+            print(f"\n Processing user {i}")
+            mmr_topk = self.compute_mmr(
+                similarity_matrix,
+                all_item_e,
+                topk_scores[i],
+                topk_indices[i],
+                top_k=100
+            )
             all_mmr_indices.append(mmr_topk)
-            print(all_mmr_indices)
+            print("Final MMR-selected items for user", i, ":", mmr_topk)
 
-        return mmr_topk
+            # Update scores to reflect reranking
+            reranked_scores = torch.full_like(scores[i], fill_value=-float('inf'))
+            for rank, item_id in enumerate(mmr_topk[::-1]):
+                reranked_scores[item_id] = rank + 1
+            scores[i] = reranked_scores
 
-    def compute_mmr(self, user_emb, all_item_e, scores, user_scores, top_k):
-        selected_items=[]
-        candidate_indices = list(range(all_item_e.shape[0]))
-        #print(candidate_indices)
+        return scores
 
-        for i in range(top_k):
-            mmr_values=[]
+    def compute_mmr(self, similarity_matrix, all_item_e, scores, score_indices, top_k):
+        selected_items = []
+        remaining_items = score_indices.tolist()
 
-            max_relevance_idx = torch.argmax(user_scores[0][i]).item()
-            print(max_relevance_idx)
+        # Pick first item (highest score)
+        first_item = remaining_items.pop(0)
+        selected_items.append(first_item)
 
-            #for i in candidate_indices:
-               #relevance = user_scores[0][i]
+        item_to_score = {item.item(): scores[id].item() for id, item in enumerate(score_indices)}
 
-        # Cosine similarity (for diversity) between user and all items
-        similarity_matrix = torch.matmul(all_item_e, all_item_e.transpose(0, 1))
-         # print(similarity_matrix)
-        similarities = similarity_matrix.diagonal(0, 0, 1)
-        #print(similarities)
+        for i in range(1, top_k):
+            mmr_max = -float('inf')
+            next_item = -1
 
-        # Compute MMR score: λ * relevance - (1 - λ) * similarity with already selected items
-        mmr_scores = self.lambda_mmr * scores - (1 - self.lambda_mmr) * similarities
+            for item in remaining_items:
+                relevance = item_to_score[item]
 
-        return mmr_scores
+                similarity_score = torch.tensor(
+                    [similarity_matrix[item, selected].item() for selected in selected_items],
+                    device=all_item_e.device
+                ).sum()
+
+                mmr_score = self.lambda_mmr * relevance - (1 - self.lambda_mmr) * similarity_score
+
+                if mmr_score > mmr_max:
+                    mmr_max = mmr_score
+                    next_item = item
+
+            if next_item != -1:
+                selected_items.append(next_item)
+                remaining_items.remove(next_item)
+                #print(f'Selected item at step {i}: {next_item}')
+
+        #print('Final selected items:', selected_items)
+        return selected_items
+
+    def get_cosine_similarity(self, item_emb):
+        # Normalize the embeddings
+        norm_item_e = F.normalize(self.item_embedding.weight, p=2, dim=1)
+        # Compute cosine similarity
+        similarity_matrix = torch.matmul(norm_item_e, norm_item_e.T)
+        return similarity_matrix
+
