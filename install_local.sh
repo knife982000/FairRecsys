@@ -1,4 +1,5 @@
 #!/bin/bash
+
 apt-get update
 apt-get upgrade -y
 apt-get install -y curl
@@ -23,5 +24,6 @@ pip3 install torch==2.4.0 torchvision torchaudio
 pip3 install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv -f https://data.pyg.org/whl/torch-2.4.0+cu121.html
 pip3 install "ray[tune]" kmeans-pytorch transformers
 pip3 install plotly
+pip3 install kaleido
 
 pip install -e ./RecBole --verbose
