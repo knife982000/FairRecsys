@@ -10,74 +10,40 @@ Reference:
 import torch
 import torch.nn as nn
 
-from recbole.model.abstract_recommender import GeneralRecommender
+from recbole.model.abstract_recommender import GeneralRecommenderZipf
 from recbole.model.init import xavier_normal_initialization
 from recbole.model.loss import BPRLoss
 from recbole.utils import InputType
 
 
-class BPRZipf(GeneralRecommender):
+class BPRZipf(GeneralRecommenderZipf):
     r"""
     BPR with Zipf's penalty to reduce popularity bias.
-    Math for Zipf's Penalty:
-    s=1+n(\sum_{i=1}^{n}ln(\frac{x_i}{x_{max}}))^{-1}
     """
     input_type = InputType.PAIRWISE
 
     def __init__(self, config, dataset):
         super(BPRZipf, self).__init__(config, dataset)
 
-        # Load parameters info
-        self.embedding_size = config["embedding_size"]
-
-        # Strength of Zipf's penalty
-        self.zipf_alpha = torch.tensor(config["zipf_alpha"] if "zipf_alpha" in config else 0.1, device=self.device)
-
-        # Define layers and loss
-        self.user_embedding = nn.Embedding(self.n_users, self.embedding_size)
-        self.item_embedding = nn.Embedding(self.n_items, self.embedding_size)
+        # Define loss
         self.loss = BPRLoss()
-
-        # Compute item popularity for Zipf's penalty
-        self.build_item_popularity(dataset)
 
         # Parameters initialization
         self.apply(xavier_normal_initialization)
 
-    def build_item_popularity(self, dataset):
-        """Precompute item popularity based on dataset interactions."""
-        item_counts = torch.zeros(self.n_items, device=self.device, dtype=torch.float)
-
-        # Ensure item_ids is on the same device as item_counts
-        item_ids = dataset.inter_feat[self.ITEM_ID].to(self.device)
-
-        # Count occurrences of each item
-        ones = torch.ones_like(item_ids, device=self.device, dtype=torch.float)
-        item_counts.scatter_add_(0, item_ids, ones)
-
-        # Normalize popularity to avoid extreme values
-        self.item_popularity = item_counts / item_counts.sum()
-        self.item_popularity = self.item_popularity.clamp(min=1e-6)
-        self.item_popularity *= 1e7  
-
-    def get_user_embedding(self, user):
-        return self.user_embedding(user)
-
-    def get_item_embedding(self, item):
-        return self.item_embedding(item)
-
-    def forward(self, user, item):
-        user_e = self.get_user_embedding(user)
-        item_e = self.get_item_embedding(item)
-        return user_e, item_e
-
     def calculate_loss(self, interaction):
+        if interaction is None:
+            raise ValueError("Interaction data is None. Ensure the dataset is properly loaded.")
+
         user = interaction[self.USER_ID]
         pos_item = interaction[self.ITEM_ID]
         neg_item = interaction[self.NEG_ITEM_ID]
 
+        if user is None or pos_item is None or neg_item is None:
+            raise ValueError("Missing required fields in interaction data.")
+
         user_e, pos_e = self.forward(user, pos_item)
-        neg_e = self.get_item_embedding(neg_item)
+        neg_e = self.item_embedding(neg_item)
 
         pos_item_score = torch.mul(user_e, pos_e).sum(dim=1)
         neg_item_score = torch.mul(user_e, neg_e).sum(dim=1)
@@ -85,33 +51,45 @@ class BPRZipf(GeneralRecommender):
         # Compute standard BPR loss
         loss = self.loss(pos_item_score, neg_item_score)
 
-        # Compute Zipf's penalty based on the formula
-        x_max = self.item_popularity.max()
-        pos_penalty = torch.log(self.item_popularity[pos_item] / x_max)
-        neg_penalty = torch.log(self.item_popularity[neg_item] / x_max)
-        zipf_penalty = self.zipf_alpha * (1 + len(pos_item) * (pos_penalty + neg_penalty).sum().reciprocal())
-
         # Add Zipf's penalty to the loss
+        zipf_penalty = self.compute_zipf_penalty()
         loss += zipf_penalty
 
         return loss
 
     def predict(self, interaction):
+        if interaction is None:
+            raise ValueError("Interaction data is None. Ensure the dataset is properly loaded.")
+
         user = interaction[self.USER_ID]
         item = interaction[self.ITEM_ID]
+
+        if user is None or item is None:
+            raise ValueError("Missing required fields in interaction data.")
+
         user_e, item_e = self.forward(user, item)
-        return torch.mul(user_e, item_e).sum(dim=1)
+        score = torch.mul(user_e, item_e).sum(dim=1)
+
+        # Apply Zipf’s penalty to predictions
+        score = self.apply_zipf_penalty(score, item)
+
+        return score
 
     def full_sort_predict(self, interaction):
+        if interaction is None:
+            raise ValueError("Interaction data is None. Ensure the dataset is properly loaded.")
+
         user = interaction[self.USER_ID]
-        user_e = self.get_user_embedding(user)
+
+        if user is None:
+            raise ValueError("Missing required fields in interaction data.")
+
+        user_e = self.user_embedding(user)
         all_item_e = self.item_embedding.weight
         score = torch.matmul(user_e, all_item_e.transpose(0, 1))
 
-        # Apply Zipf’s penalty to final predictions
         zipf_penalty = self.zipf_alpha * torch.log1p(self.item_popularity)
-        score -= zipf_penalty
-
+        score = score - zipf_penalty.unsqueeze(0)
         return score.view(-1)
 
     def get_zipf_alpha(self):

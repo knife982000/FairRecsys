@@ -132,20 +132,22 @@ class RecboleRunner:
 
     def run_and_evaluate_model(self) -> Dict[str, Any]:
         """
-        Run and evaluate the model on the specified dataset
-        :return: ``Dict[str, Any]`` The evaluation results
+        Run and evaluate the model on the specified dataset.
+        :return: ``Dict[str, Any]`` The evaluation results.
         """
         if self.model_name == "Random":
             return self.evaluate_pre_trained_model("")
 
-        trained_model = self.get_trained_model_path()
-        if trained_model is None or self.retrain:
-            if len(self.gpus) == 1:
-                return self.run_recbole()
-            return self.run_recbole_multi_gpu()
+        # Skip pre-trained model check if retrain is True
+        if not self.retrain:
+            trained_model = self.get_trained_model_path()
+            if trained_model is not None:
+                print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Skipping training.")
+                return self.evaluate_pre_trained_model(trained_model)
 
-        print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Skipping training.")
-        return self.evaluate_pre_trained_model(trained_model)
+        if len(self.gpus) == 1:
+            return self.run_recbole()
+        return self.run_recbole_multi_gpu()
 
     def get_available_cuda_gpus(self, max_gpus: int = None) -> List[str]:
         """
@@ -256,10 +258,31 @@ class RecboleRunner:
 
         
         all_results[self.dataset_name][self.model_name] = results
-        }
+        
 
         with open(path, "w") as file:
             json.dump(all_results, file)
+
+    def grid_search_zipf_alpha(self, alpha_values: List[float]) -> Dict[str, Any]:
+        """
+        Perform grid search to find the optimal zipf_alpha.
+        :param alpha_values: ``List[float]`` List of zipf_alpha values to evaluate.
+        :return: ``Dict[str, Any]`` Results for each zipf_alpha value.
+        """
+        results = {}
+        original_alpha = self.config_dict.get("zipf_alpha", 0.1)  # Save original value
+
+        for alpha in alpha_values:
+            print(f"Evaluating zipf_alpha={alpha}")
+            self.config_dict["zipf_alpha"] = alpha
+            # Force retraining by setting retrain to True
+            self.retrain = True
+            result = self.run_and_evaluate_model()
+            results[alpha] = result
+
+        # Restore original zipf_alpha
+        self.config_dict["zipf_alpha"] = original_alpha
+        return results
 
 
 def find_available_port(start: int, end: int) -> int:
@@ -284,6 +307,9 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--method", type=str, help=f"Method to use: {methods.keys()}")
     parser.add_argument("-r", "--retrain", type=bool, help=f"Ignore pre-trained model and retrain", default=False)
     parser.add_argument("-e", "--evaluate", type=bool, help=f"Evaluate the selected model", default=False)
+    parser.add_argument("--grid_search", type=bool, help="Perform grid search for zipf_alpha", default=False)
+    parser.add_argument("--alpha_values", type=str, help="Comma-separated list of zipf_alpha values for grid search")
+
     args = parser.parse_args()
 
     if not args.dataset:
@@ -314,5 +340,15 @@ if __name__ == "__main__":
 
     print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
     runner = RecboleRunner(args.method, args.dataset, config_file, config_dictionary, args.retrain)
-    evaluation_results = runner.run_and_evaluate_model()
-    runner.save_metrics_results(evaluation_results)
+
+    if args.grid_search:
+        if not args.alpha_values:
+            print("Specify alpha values for grid search using --alpha_values")
+            exit(1)
+        alpha_values = [float(a) for a in args.alpha_values.split(",")]
+        grid_search_results = runner.grid_search_zipf_alpha(alpha_values)
+        print("Grid search results:", grid_search_results)
+        runner.save_metrics_results(grid_search_results)
+    else:
+        evaluation_results = runner.run_and_evaluate_model()
+        runner.save_metrics_results(evaluation_results)
