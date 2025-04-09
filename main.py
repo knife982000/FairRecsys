@@ -307,8 +307,7 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--method", type=str, help=f"Method to use: {methods.keys()}")
     parser.add_argument("-r", "--retrain", type=bool, help=f"Ignore pre-trained model and retrain", default=False)
     parser.add_argument("-e", "--evaluate", type=bool, help=f"Evaluate the selected model", default=False)
-    parser.add_argument("--grid_search", type=bool, help="Perform grid search for zipf_alpha", default=False)
-    parser.add_argument("--alpha_values", type=str, help="Comma-separated list of zipf_alpha values for grid search")
+    parser.add_argument("-a", "--alpha_values", type=str, help="Comma-separated list of zipf_alpha values for grid search")
 
     args = parser.parse_args()
 
@@ -341,14 +340,10 @@ if __name__ == "__main__":
     print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
     runner = RecboleRunner(args.method, args.dataset, config_file, config_dictionary, args.retrain)
 
-    if args.grid_search:
-        if not args.alpha_values:
-            print("Specify alpha values for grid search using --alpha_values")
-            exit(1)
+    if args.alpha_values:
         alpha_values = [float(a) for a in args.alpha_values.split(",")]
-        grid_search_results = runner.grid_search_zipf_alpha(alpha_values)
-        print("Grid search results:", grid_search_results)
-        runner.save_metrics_results(grid_search_results)
+        results = runner.grid_search_zipf_alpha(alpha_values)
+        print("Grid search results:", results)
     else:
-        evaluation_results = runner.run_and_evaluate_model()
-        runner.save_metrics_results(evaluation_results)
+        results = runner.run_and_evaluate_model()
+    runner.save_metrics_results(results)
