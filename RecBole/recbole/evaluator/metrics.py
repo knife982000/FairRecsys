@@ -633,7 +633,7 @@ class ShannonEntropy(AbstractMetric):
         for cnt in item_count.values():
             p = cnt / total_num
             result += -p * np.log(p)
-        return result / len(item_count)
+        return result # Modified from orginal to remove division
 
 
 class GiniIndex(AbstractMetric):
