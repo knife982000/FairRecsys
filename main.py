@@ -273,8 +273,10 @@ class RecboleRunner:
 
         index = self.model_name if self.save_model_as is None else self.save_model_as
 
+        # Merge old results with new results, where new results take precedence
         if index in all_results[self.dataset_name]:
-            all_results[self.dataset_name].pop(index)
+            old_results = all_results[self.dataset_name].pop(index)
+            results = old_results | results
 
         all_results[self.dataset_name][index] = results
 
