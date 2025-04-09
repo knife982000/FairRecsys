@@ -225,17 +225,6 @@ class RecboleRunner:
 
         config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset()
 
-        config["nproc"] = self.config_dict["nproc"]
-
-        # Set evaluation to full mode
-        config["eval_args"] = {'split': {'RS': [0.8, 0.1, 0.1]}, 'order': 'RO', 'group_by': 'user',
-                               'mode': {'valid': 'full', 'test': 'full'}}
-        config["metric_decimal_place"] = 10
-
-        # Ensures the correct GPUs are used instead of the ones used during training
-        config["gpu_id"] = self.config["gpu_id"]
-        config["epochs"] = 0
-
         is_not_random = config["model"] != "Random"
 
         logger.info(f"Adjusted config: \n{config}")
