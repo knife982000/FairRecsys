@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import numpy as np
 
 results_path = "./metrics_results/results.json"
-methods = ["BPR", "LightGCN", "NGCF", "Random", "MultiVAE"]
+methods = ["BPR", "BPRZipf", "LightGCN", "NGCF", "Random", "MultiVAE"]
 datasets = ["ml-1m", "gowalla-merged", "steam-merged"]
 datasets_formatted = ["ML-1M", "Gowalla", "Steam"]
 
@@ -71,11 +71,10 @@ def fill_table(dataset: str, k: int, results: Dict[str, Any], fair_exposure: flo
             max_value = max(values)
             return [f"\\textbf{{{format_value(v)}}}" if v == max_value else format_value(v) for v in values]
 
-    metrics = ["recall@10", "mrr@10", "ndcg@10", "hit@10", "shannonentropy@10", "novelty", "exposure_50-50@10", "exposure_80-19@10", "exposure_90-9@10", "exposure_99-1@10"]
-    models = ["Random", "BPR", "NGCF", "LightGCN", "MultiVAE"]
+    metrics = ["recall@10", "mrr@10", "ndcg@10", "hit@10", "shannonentropy@10", "novelty", "exposure_50-50@10", "exposure_80-20@10", "exposure_90-10@10", "exposure_99-1@10"]
     table_data = {metric: [] for metric in metrics}
 
-    for model in models:
+    for model in methods:
         for metric in metrics:
             value = results["ml-1m"][model]["test_result"][metric]
             table_data[metric].append(value)
@@ -85,8 +84,8 @@ def fill_table(dataset: str, k: int, results: Dict[str, Any], fair_exposure: flo
         table_data[metric] = bold_max(table_data[metric], is_exposure)
 
     table_str = f"\\begin{{table*}}\n \\caption{{Metrics results for the {dataset} dataset. The perfect exposure for {dataset} is {fair_exposure} per item.}}\n  \\label{{table:results_{dataset}}}\n  \\centering\n  \\begin{{tabular}}{{lcccccccccc}}\n    \\toprule\n    \\textbf{{Model}} & \\textbf{{Recall}} & \\textbf{{MRR}} & \\textbf{{NDCG}} & \\textbf{{Hit}} & \\textbf{{SE}} & \\textbf{{Novelty}} & \\textbf{{DE$_{{50-50}}$}} & \\textbf{{DE$_{{80-20}}$}} & \\textbf{{DE$_{{90-10}}$}} & \\textbf{{DE$_{{99-1}}$}} \\\\\n    \\midrule\n"
-    for i, model in enumerate(models):
-        table_str += f"    {model} & {table_data['recall@10'][i]} & {table_data['mrr@10'][i]} & {table_data['ndcg@10'][i]} & {table_data['hit@10'][i]} & {table_data['shannonentropy@10'][i]} & {table_data['novelty'][i]} & {table_data['exposure_50-50@10'][i]} & {table_data['exposure_80-19@10'][i]} & {table_data['exposure_90-9@10'][i]} & {table_data['exposure_99-1@10'][i]} \\\\\n"
+    for i, model in enumerate(methods):
+        table_str += f"    {model} & {table_data['recall@10'][i]} & {table_data['mrr@10'][i]} & {table_data['ndcg@10'][i]} & {table_data['hit@10'][i]} & {table_data['shannonentropy@10'][i]} & {table_data['novelty'][i]} & {table_data['exposure_50-50@10'][i]} & {table_data['exposure_80-20@10'][i]} & {table_data['exposure_90-10@10'][i]} & {table_data['exposure_99-1@10'][i]} \\\\\n"
     table_str += "    \\bottomrule\n  \\end{tabular}\n\\end{table*}"
     folder = "./plots/"
     os.makedirs(os.path.dirname(folder), exist_ok=True)
