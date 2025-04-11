@@ -322,8 +322,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--oversample", type=float, help=f"Ratio for oversampling", default=0.0)
     parser.add_argument("-u", "--undersample", type=float, help=f"Ratio for undersampling", default=0.0)
     parser.add_argument("-s", "--save_model_as", type=str, help=f"Name to save model as", default=None)
-    parser.add_argument("--grid_search", type=bool, help="Perform grid search for zipf_alpha", default=False)
-    parser.add_argument("--alpha_values", type=str, help="Comma-separated list of zipf_alpha values for grid search")
+    parser.add_argument("-a", "--alpha_values", type=str, help="Comma-separated list of zipf_alpha values for grid search")
 
     args = parser.parse_args()
 
