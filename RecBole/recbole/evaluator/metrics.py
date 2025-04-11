@@ -864,7 +864,7 @@ class RecommendedGraph(AbstractMetric):
         super().__init__(config)
         self.topk = config["topk"]
         self.save_directory = f"./metrics_results/{config["dataset"]}/"
-        self.save_name = f"{config["model"]}.json"
+        self.save_name = f"{config["save_model_as"]}-plot.json"
 
     def used_info(self, dataobject):
         rec_items = dataobject.get("rec.items")

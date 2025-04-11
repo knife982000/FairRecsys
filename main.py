@@ -3,9 +3,9 @@ import json
 import os
 from logging import getLogger
 from typing import Optional, Any, Dict, List
+
 import torch.multiprocessing as mp
 import torch.distributed as dist
-
 import torch
 
 from RecBole.recbole.config.configurator import Config
@@ -13,6 +13,8 @@ from RecBole.recbole.data.utils import create_dataset, data_preparation
 from RecBole.recbole.model.general_recommender.bpr_zipf import BPRZipf
 from RecBole.recbole.utils import get_trainer, set_color
 from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
+
+from sampler import InteractionSampler
 
 ##################################
 ######### Configurations #########
@@ -30,14 +32,17 @@ eval_config_file = ["eval_config.yaml"]
 
 
 class RecboleRunner:
-    def __init__(self, model_name: str, dataset_name: str, config_file_list: List[str] = None, config_dict: Dict[str, Any] = None, retrain: bool = False):
+    def __init__(self, model_name: str, dataset_name: str, config_file_list: List[str] = None, config_dict: Dict[str, Any] = None, retrain: bool = False, over_sample_ratio: float = 0.0, under_sample_ratio: float = 0.0, save_model_as: str = None):
         self.model_name = model_name
         self.dataset_name = dataset_name
         self.config_dict = config_dict if config_dict is not None else {}
         self.config_file_list = config_file_list if config_file_list is not None else []
+        self.save_model_as = save_model_as
         self.config = self.create_config()
         self.gpus = self.get_available_cuda_gpus()
         self.retrain = retrain
+        self.over_sample_ratio = over_sample_ratio
+        self.under_sample_ratio = under_sample_ratio
 
         # Configuration for distributed training
         self.config_dict["offset"] = 0
@@ -53,7 +58,10 @@ class RecboleRunner:
         if os.path.isdir(self.config_dict["checkpoint_dir"]):
             saved_models = os.listdir(self.config_dict["checkpoint_dir"])
             for saved_model in saved_models:
-                if saved_model == f"{self.model_name}.pth":
+                if self.save_model_as is not None:
+                    if saved_model == f"{self.save_model_as}.pth":
+                        return self.config_dict["checkpoint_dir"] + "/" + saved_model
+                elif saved_model == f"{self.model_name}.pth":
                     return self.config_dict["checkpoint_dir"] + "/" + saved_model
         return None
 
@@ -78,7 +86,9 @@ class RecboleRunner:
         model = model if model is not None else self.get_model_name_or_class()
         config_dict = config_dict if config_dict is not None else self.config_dict
         config_file_list = config_file_list if config_file_list is not None else self.config_file_list
-        return Config(model=model, dataset=self.dataset_name, config_dict=config_dict, config_file_list=config_file_list)
+        config = Config(model=model, dataset=self.dataset_name, config_dict=config_dict, config_file_list=config_file_list)
+        config["save_model_as"] = self.save_model_as if self.save_model_as is not None else f"{self.model_name}"
+        return config
 
     def run_recbole(self, rank: int = None, queue: mp.SimpleQueue = None) -> dict[str, Any]:
         """
@@ -186,10 +196,18 @@ class RecboleRunner:
         init_seed(config["seed"], config["reproducibility"])
 
         dataset = create_dataset(config)
+
+        if self.over_sample_ratio > 0 or self.under_sample_ratio > 0:
+            logger = getLogger()
+            logger.info(set_color(f"Applying sampling using oversample ratio: {self.over_sample_ratio} and undersample ratio: {self.under_sample_ratio}", "blue"))
+            original_shape = dataset.inter_feat.shape
+            dataset = InteractionSampler(dataset).sample(self.under_sample_ratio, self.over_sample_ratio)
+            logger.info(f"Dataset before sampling: {original_shape}, after sampling: {dataset.inter_feat.shape}")
+
         train_data, valid_data, test_data = data_preparation(config, dataset)
 
         init_seed(config["seed"] + config["local_rank"], config["reproducibility"])
-        if methods[config["model"]] == None:
+        if methods[config["model"]] is None:
             model_class = get_model(config["model"])
         else:
             model_class = methods[config["model"]]
@@ -206,17 +224,6 @@ class RecboleRunner:
         logger = getLogger()
 
         config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset()
-
-        config["nproc"] = self.config_dict["nproc"]
-
-        # Set evaluation to full mode
-        config["eval_args"] = {'split': {'RS': [0.8, 0.1, 0.1]}, 'order': 'RO', 'group_by': 'user',
-                               'mode': {'valid': 'full', 'test': 'full'}}
-        config["metric_decimal_place"] = 10
-
-        # Ensures the correct GPUs are used instead of the ones used during training
-        config["gpu_id"] = self.config["gpu_id"]
-        config["epochs"] = 0
 
         is_not_random = config["model"] != "Random"
 
@@ -242,9 +249,8 @@ class RecboleRunner:
         :param results: ``Dict[str,Any]`` The evaluation results
         :return: ``None``
         """
-        path = f"{metrics_results_folder}results.json"
-        print(f"Saving results to {path}")
-        os.makedirs(os.path.dirname(metrics_results_folder), exist_ok=True)
+        path = f"{metrics_results_folder}{self.dataset_name}/{self.model_name}.json"
+        os.makedirs(os.path.dirname(f"{metrics_results_folder}{self.dataset_name}"), exist_ok=True)
         if os.path.exists(path):
             with open(path, "r") as file:
                 all_results = json.load(file)
@@ -254,8 +260,16 @@ class RecboleRunner:
         if self.dataset_name not in all_results:
             all_results[self.dataset_name] = {}
 
-        all_results[self.dataset_name][self.model_name] = results
+        index = self.model_name if self.save_model_as is None else self.save_model_as
 
+        # Merge old results with new results, where new results take precedence
+        if index in all_results[self.dataset_name]:
+            old_results = all_results[self.dataset_name].pop(index)
+            results = old_results | results
+
+        all_results[self.dataset_name][index] = results
+
+        print(f"Saving results to {path}, results: {results}")
         with open(path, "w") as file:
             json.dump(all_results, file)
 
@@ -282,6 +296,9 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--method", type=str, help=f"Method to use: {methods.keys()}")
     parser.add_argument("-r", "--retrain", type=bool, help=f"Ignore pre-trained model and retrain", default=False)
     parser.add_argument("-e", "--evaluate", type=bool, help=f"Evaluate the selected model", default=False)
+    parser.add_argument("-o", "--oversample", type=float, help=f"Ratio for oversampling", default=0.0)
+    parser.add_argument("-u", "--undersample", type=float, help=f"Ratio for undersampling", default=0.0)
+    parser.add_argument("-s", "--save_model_as", type=str, help=f"Name to save model as", default=None)
     args = parser.parse_args()
 
     if not args.dataset:
@@ -311,6 +328,6 @@ if __name__ == "__main__":
     np.unicode = np.str_
 
     print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
-    runner = RecboleRunner(args.method, args.dataset, config_file, config_dictionary, args.retrain)
+    runner = RecboleRunner(model_name=args.method, dataset_name=args.dataset, config_file_list=config_file, config_dict=config_dictionary, retrain=args.retrain, over_sample_ratio=args.oversample, under_sample_ratio=args.undersample, save_model_as=args.save_model_as)
     evaluation_results = runner.run_and_evaluate_model()
     runner.save_metrics_results(evaluation_results)
