@@ -3,20 +3,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class MMRReranker:
-    def __init__(self, lambda_mmr=0.5):
+    def __init__(self, lambda_mmr=0.5,top_k=20,n_items=500):
         self.lambda_mmr = lambda_mmr
+        self.top_k = top_k
+        self.n_items = n_items
 
-    def rerank(self, user_e, all_item_e, scores,top_k=10):
+    def rerank(self, user_e, all_item_e, scores):
         """
         Perform the MMR reranking based on relevance (score) and diversity (similarity).
-
-        Parameters:
-        - top_k: Number of top items to rerank and select (default is 10).
-
-        Returns:
-        - reranked_items: List of top-k item indices for each user after MMR reranking.
         """
-        topk_scores, topk_indices = torch.topk(scores, k=500, dim=1)
+        topk_scores, topk_indices = torch.topk(scores, self.n_items, dim=1)
         print("topk_scores shape:", topk_scores.shape)
         print("topk_indices shape:", topk_indices.shape)
 
@@ -31,15 +27,13 @@ class MMRReranker:
                 similarity_matrix,
                 all_item_e,
                 topk_scores[u],
-                topk_indices[u],
-                top_k=20
+                topk_indices[u]
             )
             all_mmr_indices.append(mmr_topk)
-            print(f"Final MMR-selected items for user {u}:", mmr_topk)
 
         return all_mmr_indices
 
-    def compute_mmr(self, similarity_matrix, all_item_e, topk_scores, topk_indices, top_k):
+    def compute_mmr(self, similarity_matrix, all_item_e, topk_scores, topk_indices):
         selected_items = []
         remaining_items = topk_indices.tolist()
 
@@ -50,7 +44,7 @@ class MMRReranker:
         # Create dict for item and score of the item
         item_to_score = {item.item(): topk_scores[id].item() for id, item in enumerate(topk_indices)}
 
-        for i in range(1, top_k):
+        for i in range(1, self.top_k):
             # Calculate relevance (score)
             relevance = torch.tensor([item_to_score[item] for item in remaining_items], device=all_item_e.device)
 
