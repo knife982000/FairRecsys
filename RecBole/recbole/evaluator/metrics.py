@@ -633,7 +633,7 @@ class ShannonEntropy(AbstractMetric):
         for cnt in item_count.values():
             p = cnt / total_num
             result += -p * np.log(p)
-        return result / len(item_count)
+        return result # Modified from orginal to remove division
 
 
 class GiniIndex(AbstractMetric):
@@ -864,7 +864,7 @@ class RecommendedGraph(AbstractMetric):
         super().__init__(config)
         self.topk = config["topk"]
         self.save_directory = f"./metrics_results/{config["dataset"]}/"
-        self.save_name = f"{config["model"]}.json"
+        self.save_name = f"{config["save_model_as"]}-plot.json"
 
     def used_info(self, dataobject):
         rec_items = dataobject.get("rec.items")
