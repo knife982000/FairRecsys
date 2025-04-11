@@ -142,20 +142,22 @@ class RecboleRunner:
 
     def run_and_evaluate_model(self) -> Dict[str, Any]:
         """
-        Run and evaluate the model on the specified dataset
-        :return: ``Dict[str, Any]`` The evaluation results
+        Run and evaluate the model on the specified dataset.
+        :return: ``Dict[str, Any]`` The evaluation results.
         """
         if self.model_name == "Random":
             return self.evaluate_pre_trained_model("")
 
-        trained_model = self.get_trained_model_path()
-        if trained_model is None or self.retrain:
-            if len(self.gpus) == 1:
-                return self.run_recbole()
-            return self.run_recbole_multi_gpu()
+        # Skip pre-trained model check if retrain is True
+        if not self.retrain:
+            trained_model = self.get_trained_model_path()
+            if trained_model is not None:
+                print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Skipping training.")
+                return self.evaluate_pre_trained_model(trained_model)
 
-        print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Skipping training.")
-        return self.evaluate_pre_trained_model(trained_model)
+        if len(self.gpus) == 1:
+            return self.run_recbole()
+        return self.run_recbole_multi_gpu()
 
     def get_available_cuda_gpus(self, max_gpus: int = None) -> List[str]:
         """
@@ -273,6 +275,27 @@ class RecboleRunner:
         with open(path, "w") as file:
             json.dump(all_results, file)
 
+    def grid_search_zipf_alpha(self, alpha_values: List[float]) -> Dict[str, Any]:
+        """
+        Perform grid search to find the optimal zipf_alpha.
+        :param alpha_values: ``List[float]`` List of zipf_alpha values to evaluate.
+        :return: ``Dict[str, Any]`` Results for each zipf_alpha value.
+        """
+        results = {}
+        original_alpha = self.config_dict.get("zipf_alpha", 0.1)  # Save original value
+
+        for alpha in alpha_values:
+            print(f"Evaluating zipf_alpha={alpha}")
+            self.config_dict["zipf_alpha"] = alpha
+            # Force retraining by setting retrain to True
+            self.retrain = True
+            result = self.run_and_evaluate_model()
+            results[alpha] = result
+
+        # Restore original zipf_alpha
+        self.config_dict["zipf_alpha"] = original_alpha
+        return results
+
 
 def find_available_port(start: int, end: int) -> int:
     """
@@ -299,6 +322,8 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--oversample", type=float, help=f"Ratio for oversampling", default=0.0)
     parser.add_argument("-u", "--undersample", type=float, help=f"Ratio for undersampling", default=0.0)
     parser.add_argument("-s", "--save_model_as", type=str, help=f"Name to save model as", default=None)
+    parser.add_argument("-a", "--alpha_values", type=str, help="Comma-separated list of zipf_alpha values for grid search")
+
     args = parser.parse_args()
 
     if not args.dataset:
@@ -329,5 +354,11 @@ if __name__ == "__main__":
 
     print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
     runner = RecboleRunner(model_name=args.method, dataset_name=args.dataset, config_file_list=config_file, config_dict=config_dictionary, retrain=args.retrain, over_sample_ratio=args.oversample, under_sample_ratio=args.undersample, save_model_as=args.save_model_as)
-    evaluation_results = runner.run_and_evaluate_model()
-    runner.save_metrics_results(evaluation_results)
+
+    if args.alpha_values:
+        alpha_values = [float(a) for a in args.alpha_values.split(",")]
+        results = runner.grid_search_zipf_alpha(alpha_values)
+        print("Grid search results:", results)
+    else:
+        results = runner.run_and_evaluate_model()
+    runner.save_metrics_results(results)

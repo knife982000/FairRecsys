@@ -1,1 +1,33 @@
-# Environment Settingsgpu_id: '0'use_gpu: Trueworkers: 2nproc: 1# Model Settingsembedding_size: 64# Training Settingsepochs: 0train_batch_size: 8192train_neg_sample_args:  distribution: uniform  sample_num: 1  alpha: 1.0  dynamic: False  candidate_num: 0valid_metric: MRR@10eval_step: 5# Evaluation Settingseval_batch_size: 4096000eval_args:  group_by: user  order: RO  split: { 'RS': [ 0.8,0.1,0.1 ] }  mode: fullmetric_decimal_place: 10topk: 10# Zipf Settingszipf_alpha: 0.1
+# Environment Settings
+gpu_id: '0'
+use_gpu: True
+workers: 2
+nproc: 1
+
+# Model Settings
+embedding_size: 64
+
+# Training Settings
+epochs: 0
+train_batch_size: 8192
+train_neg_sample_args:
+  distribution: uniform
+  sample_num: 1
+  alpha: 1.0
+  dynamic: False
+  candidate_num: 0
+valid_metric: MRR@10
+eval_step: 5
+
+# Evaluation Settings
+eval_batch_size: 4096000
+eval_args:
+  group_by: user
+  order: RO
+  split: {RS: [0.8, 0.1, 0.1]}
+  mode: full
+metric_decimal_place: 10
+topk: 10
+
+# Zipf Settings
+zipf_alpha: 0.9
