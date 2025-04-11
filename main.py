@@ -356,14 +356,10 @@ if __name__ == "__main__":
     print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
     runner = RecboleRunner(model_name=args.method, dataset_name=args.dataset, config_file_list=config_file, config_dict=config_dictionary, retrain=args.retrain, over_sample_ratio=args.oversample, under_sample_ratio=args.undersample, save_model_as=args.save_model_as)
 
-    if args.grid_search:
-        if not args.alpha_values:
-            print("Specify alpha values for grid search using --alpha_values")
-            exit(1)
+    if args.alpha_values:
         alpha_values = [float(a) for a in args.alpha_values.split(",")]
-        grid_search_results = runner.grid_search_zipf_alpha(alpha_values)
-        print("Grid search results:", grid_search_results)
-        runner.save_metrics_results(grid_search_results)
+        results = runner.grid_search_zipf_alpha(alpha_values)
+        print("Grid search results:", results)
     else:
-        evaluation_results = runner.run_and_evaluate_model()
-        runner.save_metrics_results(evaluation_results)
+        results = runner.run_and_evaluate_model()
+    runner.save_metrics_results(results)
