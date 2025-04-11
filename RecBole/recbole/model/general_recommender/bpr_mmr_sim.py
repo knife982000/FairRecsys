@@ -64,7 +64,7 @@ class BPRMMRSim(GeneralRecommender):
         score = torch.matmul(user_e, all_item_e.transpose(0, 1))
         print(score.shape)
 
-        reranker = MMRReranker(lambda_mmr=0.5)
+        reranker = MMRReranker(lambda_mmr=0.5, top_k=20, n_items=500)
         reranked_scores = reranker.rerank(user_e, all_item_e,score)
         print(reranked_scores)
 
