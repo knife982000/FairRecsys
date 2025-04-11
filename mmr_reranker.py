@@ -35,7 +35,7 @@ class MMRReranker:
                 top_k=20
             )
             all_mmr_indices.append(mmr_topk)
-            print("Final MMR-selected items for user", u, ":", mmr_topk)
+            print(f"Final MMR-selected items for user {u}:", mmr_topk)
 
         return all_mmr_indices
 
