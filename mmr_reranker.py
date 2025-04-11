@@ -31,7 +31,7 @@ class MMRReranker:
             )
             all_mmr_indices.append(mmr_topk)
 
-        return all_mmr_indices
+        return torch.tensor(all_mmr_indices)
 
     def compute_mmr(self, similarity_matrix, all_item_e, topk_scores, topk_indices):
         selected_items = []
