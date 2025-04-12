@@ -23,39 +23,27 @@ import numpy as np
 import scipy.sparse as sp
 import torch
 
-from recbole.model.abstract_recommender import GeneralRecommender
+from recbole.model.abstract_recommender import GeneralRecommenderZipf
 from recbole.model.init import xavier_uniform_initialization
 from recbole.model.loss import BPRLoss, EmbLoss
 from recbole.utils import InputType
 
 
-class LightGCN(GeneralRecommender):
-    r"""LightGCN is a GCN-based recommender model.
-
-    LightGCN includes only the most essential component in GCN — neighborhood aggregation — for
-    collaborative filtering. Specifically, LightGCN learns user and item embeddings by linearly
-    propagating them on the user-item interaction graph, and uses the weighted sum of the embeddings
-    learned at all layers as the final embedding.
-
-    We implement the model following the original author with a pairwise training mode.
-    """
+class LightGCNZipf(GeneralRecommenderZipf):
+    r"""LightGCN is a GCN-based recommender model with Zipf's penalty."""
 
     input_type = InputType.PAIRWISE
 
     def __init__(self, config, dataset):
-        super(LightGCN, self).__init__(config, dataset)
-
-        # load dataset info
-        self.interaction_matrix = dataset.inter_matrix(form="coo").astype(np.float32)
+        super(LightGCNZipf, self).__init__(config, dataset)
 
         # load parameters info
-        self.latent_dim = config[
-            "embedding_size"
-        ]  # int type:the embedding size of lightGCN
-        self.n_layers = config["n_layers"]  # int type:the layer num of lightGCN
-        self.reg_weight = config[
-            "reg_weight"
-        ]  # float32 type: the weight decay for l2 normalization
+        self.latent_dim = config["embedding_size"]  # Embedding size of LightGCN
+        self.n_layers = config["n_layers"] if "n_layers" in config else 3  # Default to 3 layers
+        if not isinstance(self.n_layers, int) or self.n_layers <= 0:
+            raise ValueError(f"Invalid value for n_layers: {self.n_layers}. It must be a positive integer.")
+
+        self.reg_weight = config["reg_weight"] if "reg_weight" in config else 0.0  # Default to 0.0
         self.require_pow = config["require_pow"]
 
         # define layers and loss
@@ -71,6 +59,13 @@ class LightGCN(GeneralRecommender):
         # storage variables for full sort evaluation acceleration
         self.restore_user_e = None
         self.restore_item_e = None
+
+        # Initialize interaction matrix
+        self.interaction_matrix = dataset.inter_matrix(
+            form="coo"
+        ).astype(np.float32)  # User-item interaction matrix in COO format
+        if self.interaction_matrix is None:
+            raise ValueError("Interaction matrix is None. Ensure the dataset is properly loaded.")
 
         # generate intermediate data
         self.norm_adj_matrix = self.get_norm_adj_mat().to(self.device)
@@ -185,6 +180,10 @@ class LightGCN(GeneralRecommender):
 
         loss = mf_loss + self.reg_weight * reg_loss
 
+        # Add Zipf's penalty to the loss
+        zipf_penalty = self.compute_zipf_penalty()
+        loss += zipf_penalty
+
         return loss
 
     def predict(self, interaction):
@@ -196,6 +195,10 @@ class LightGCN(GeneralRecommender):
         u_embeddings = user_all_embeddings[user]
         i_embeddings = item_all_embeddings[item]
         scores = torch.mul(u_embeddings, i_embeddings).sum(dim=1)
+
+        # Apply Zipf's penalty to predictions
+        scores = self.apply_zipf_penalty(scores, item)
+
         return scores
 
     def full_sort_predict(self, interaction):
@@ -207,5 +210,9 @@ class LightGCN(GeneralRecommender):
 
         # dot with all item embedding to accelerate
         scores = torch.matmul(u_embeddings, self.restore_item_e.transpose(0, 1))
+
+        # Apply Zipf's penalty to all item scores using inherited method
+        zipf_penalty = self.zipf_alpha * torch.log1p(self.item_popularity)
+        scores = scores - zipf_penalty.unsqueeze(0)
 
         return scores.view(-1)
