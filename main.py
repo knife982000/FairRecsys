@@ -10,11 +10,8 @@ import torch
 
 from RecBole.recbole.config.configurator import Config
 from RecBole.recbole.data.utils import create_dataset, data_preparation
-<<<<<<< HEAD
-=======
 from RecBole.recbole.model.general_recommender.bpr_zipf import BPRZipf
 from RecBole.recbole.model.general_recommender.bpr_mmr_sim import BPRMMRSim
->>>>>>> origin/main
 from RecBole.recbole.utils import get_trainer, set_color
 from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
 from RecBole.recbole.model.general_recommender.lightgcn_zipf import LightGCNZipf
