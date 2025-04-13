@@ -626,7 +626,7 @@ class GeneralRecommenderZipf(GeneralRecommender):
 
         # Initialize item popularity and Zipf's alpha
         self.item_popularity = None
-        self.zipf_alpha = torch.tensor(config["zipf_alpha"] if "zipf_alpha" in config else 0.9, device=self.device)
+        self.zipf_alpha = 0.94  # Default value for Zipf's alpha
 
         # Define embeddings
         self.embedding_size = config["embedding_size"]
