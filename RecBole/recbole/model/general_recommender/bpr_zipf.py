@@ -39,9 +39,6 @@ class BPRZipf(GeneralRecommenderZipf):
         pos_item = interaction[self.ITEM_ID]
         neg_item = interaction[self.NEG_ITEM_ID]
 
-        if user is None or pos_item is None or neg_item is None:
-            raise ValueError("Missing required fields in interaction data.")
-
         user_e, pos_e = self.forward(user, pos_item)
         neg_e = self.item_embedding(neg_item)
 
@@ -58,14 +55,9 @@ class BPRZipf(GeneralRecommenderZipf):
         return loss
 
     def predict(self, interaction):
-        if interaction is None:
-            raise ValueError("Interaction data is None. Ensure the dataset is properly loaded.")
 
         user = interaction[self.USER_ID]
         item = interaction[self.ITEM_ID]
-
-        if user is None or item is None:
-            raise ValueError("Missing required fields in interaction data.")
 
         user_e, item_e = self.forward(user, item)
         score = torch.mul(user_e, item_e).sum(dim=1)
@@ -76,13 +68,7 @@ class BPRZipf(GeneralRecommenderZipf):
         return score
 
     def full_sort_predict(self, interaction):
-        if interaction is None:
-            raise ValueError("Interaction data is None. Ensure the dataset is properly loaded.")
-
         user = interaction[self.USER_ID]
-
-        if user is None:
-            raise ValueError("Missing required fields in interaction data.")
 
         user_e = self.user_embedding(user)
         all_item_e = self.item_embedding.weight

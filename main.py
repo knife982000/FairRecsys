@@ -14,6 +14,10 @@ from RecBole.recbole.model.general_recommender.bpr_zipf import BPRZipf
 from RecBole.recbole.model.general_recommender.bpr_mmr_sim import BPRMMRSim
 from RecBole.recbole.utils import get_trainer, set_color
 from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
+from RecBole.recbole.model.general_recommender.lightgcn_zipf import LightGCNZipf
+from RecBole.recbole.model.general_recommender.multivae_zipf import MultiVAEZipf
+from RecBole.recbole.model.general_recommender.ngcf_zipf import NGCFZipf
+from RecBole.recbole.model.general_recommender.bpr_zipf import BPRZipf
 
 from sampler import InteractionSampler
 
@@ -23,7 +27,8 @@ from sampler import InteractionSampler
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = {"BPR": None, "LightGCN": None, "NGCF": None, "MultiVAE": None, "Random": None, "BPRZipf": BPRZipf, "BPRMMRSim": BPRMMRSim}
+methods = {"BPR": None, "LightGCN": None, "NGCF": None, "MultiVAE": None, "Random": None, "BPRZipf": BPRZipf, "BPRMMRSim": BPRMMRSim, "LightGCNZipf": LightGCNZipf, "NGCFZipf": NGCFZipf, "MultiVAEZipf": MultiVAEZipf }
+
 datasets = ["ml-100k", "ml-1m", "ml-20m", "gowalla-merged", "steam-merged"]
 config_dictionary = {
     "metrics": ["Recall", "MRR", "NDCG", "Precision", "Hit", "Exposure", "ShannonEntropy", "Novelty", "RecommendedGraph"]
@@ -283,7 +288,7 @@ class RecboleRunner:
         :return: ``Dict[str, Any]`` Results for each zipf_alpha value.
         """
         results = {}
-        original_alpha = self.config_dict.get("zipf_alpha", 0.1)  # Save original value
+        original_alpha = self.config_dict["zipf_alpha"] if "zipf_alpha" in self.config_dict else 0.94  # Save original value
 
         for alpha in alpha_values:
             print(f"Evaluating zipf_alpha={alpha}")
