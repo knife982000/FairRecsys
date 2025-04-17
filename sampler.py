@@ -32,8 +32,8 @@ class InteractionSampler:
         :param target_ratio: ``float`` The ratio of the sample size to the original dataset size when oversampling
         :param retain_ratio: ``float`` The ratio of the sample size to the original dataset size when undersampling
         """
-        if target_ratio < 1 or retain_ratio >= 1:
-            raise ValueError("Target ratio must be greater than or equal to 1 and retain ratio must be less than 1.")
+        if target_ratio < 1 or retain_ratio > 1:
+            raise ValueError("Target ratio must be greater than or equal to 1 and retain ratio must be less or equal to 1.")
         return self.oversample(target_ratio).undersample(retain_ratio)
 
     def oversample(self, target_ratio: float):
@@ -50,7 +50,7 @@ class InteractionSampler:
         Undersample the dataset based on the item frequency by removing samples.
         :param retain_ratio: ``float`` The ratio of the sample size to the original dataset size
         """
-        if retain_ratio >= 1:
+        if retain_ratio > 1:
             raise ValueError("Retain ratio must be less than or equal to 1.")
         return self.__sample(retain_ratio, replace=False, inverse=True)
 
