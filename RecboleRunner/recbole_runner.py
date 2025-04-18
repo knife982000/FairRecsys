@@ -1,6 +1,6 @@
 import json
+import logging
 import os
-from logging import getLogger
 from typing import Optional, Any, Dict, List
 
 import torch.multiprocessing as mp
@@ -9,7 +9,7 @@ import torch
 
 from RecBole.recbole.config.configurator import Config
 from RecBole.recbole.data.utils import create_dataset, data_preparation
-from RecBole.recbole.utils import get_trainer, set_color
+from RecBole.recbole.utils import get_trainer, set_color, init_logger
 from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
 
 from sampler import InteractionSampler
@@ -24,6 +24,7 @@ class RecboleRunner:
         self.config_file_list = config_file_list if config_file_list is not None else []
         self.save_model_as = save_model_as
         self.config = self.create_config()
+        self.logger = logging.getLogger("Recbole Runner")
         self.gpus = self.get_available_cuda_gpus()
         self.retrain = retrain
         self.evaluate = evaluate
@@ -31,6 +32,8 @@ class RecboleRunner:
         self.under_sample_ratio = under_sample_ratio
 
         self.dataset = None
+
+        init_logger(self.config)
 
         # Configuration for distributed training
         self.config_dict["offset"] = 0
@@ -87,14 +90,18 @@ class RecboleRunner:
         :param model_path: ``str`` The path to the pre-trained model
         :return: ``dict[str, Any]`` The training results
         """
-        logger = getLogger()
+        from RecboleRunner import RunnerManager
+        if RunnerManager.get_runner() is None:
+            self.logger.warning("RunnerManager is None, setting it to the current runner, most likely due to multiprocessing")
+            RunnerManager.set_runner(self)
+
         config_dict = self.config_dict
         if rank is not None:
             config_dict["local_rank"] = rank
-            logger.info(f"Process with rank {rank} started")
+            self.logger.info(f"Process with rank {rank} started")
 
         config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset(config_dict=config_dict)
-        logger.info(config)
+        self.logger.info(config)
 
         trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
 
@@ -106,12 +113,12 @@ class RecboleRunner:
         )
 
         environment_tb = get_environment(config)
-        logger.info(
+        self.logger.info(
             "The running environment of this training is as follows:\n"
             + environment_tb.draw()
         )
 
-        logger.info(set_color("best valid ", "yellow") + f": {best_valid_result}")
+        self.logger.info(set_color("best valid ", "yellow") + f": {best_valid_result}")
 
         result = {"best_valid_score": best_valid_score, "best_valid_result": best_valid_result}
 
@@ -148,11 +155,12 @@ class RecboleRunner:
 
         if self.evaluate:
             if trained_model is not None:
-                print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Starting evaluation.")
+                self.logger.info(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Starting evaluation.")
                 return self.evaluate_pre_trained_model(trained_model)
             else:
                 raise ValueError(f"Model with name {self.save_model_as} has not been trained yet.")
 
+        self.logger.info(f"Model {set_color(self.model_name, "blue")} has not been trained on dataset {set_color(self.dataset_name, "yellow")}. Starting training.")
         if len(self.gpus) == 1:
             return self.run_recbole(model_path=trained_model)
         return self.run_recbole_multi_gpu(trained_model)
@@ -164,14 +172,14 @@ class RecboleRunner:
         """
         if torch.cuda.is_available():
             gpus = [f"{torch.cuda.get_device_name(i)} - {i}" for i in range(torch.cuda.device_count())]
-            print(f"GPU(s) available({len(gpus)}): {gpus}")
+            self.logger.info(f"GPU(s) available({len(gpus)}): {gpus}")
             if max_gpus is not None and len(gpus) > max_gpus:
                 gpus = gpus[:max_gpus]
-                print(f"Using only {max_gpus} GPU(s): {gpus}")
+                self.logger.info(f"Using only {max_gpus} GPU(s): {gpus}")
             self.config_dict["nproc"] = len(gpus)
             self.config_dict["world_size"] = self.config_dict["nproc"]
         else:
-            print("No GPU available. Exiting.")
+            self.logger.error("No GPU available. Exiting.")
             exit(0)
         return gpus
 
@@ -183,7 +191,7 @@ class RecboleRunner:
         """
         metrics = [metric for metric in self.config_dict["metrics"] if metric not in model_metrics]
         if len(metrics) > 0:
-            print(f"Model doesn't support some selected metrics: {metrics}")
+            self.logger.warning(f"Model doesn't support some selected metrics: {set_color(metrics, 'red')}")
             return False
         return True
 
@@ -198,11 +206,10 @@ class RecboleRunner:
         self.dataset = create_dataset(config)
 
         if self.over_sample_ratio > 0 or self.under_sample_ratio > 0:
-            logger = getLogger()
-            logger.info(set_color(f"Applying sampling using oversample ratio: {self.over_sample_ratio} and undersample ratio: {self.under_sample_ratio}", "blue"))
+            self.logger.info(set_color(f"Applying sampling using oversample ratio: {self.over_sample_ratio} and undersample ratio: {self.under_sample_ratio}", "blue"))
             original_shape = self.dataset.inter_feat.shape
-            dataset = InteractionSampler(self.dataset).sample(self.under_sample_ratio, self.over_sample_ratio)
-            logger.info(f"Dataset before sampling: {original_shape}, after sampling: {self.dataset.inter_feat.shape}")
+            self.dataset = InteractionSampler(self.dataset).sample(self.under_sample_ratio, self.over_sample_ratio)
+            self.logger.info(f"Dataset before sampling: {original_shape}, after sampling: {self.dataset.inter_feat.shape}")
 
         train_data, valid_data, test_data = data_preparation(config, self.dataset)
 
@@ -221,13 +228,11 @@ class RecboleRunner:
         :param model_path: ``str`` The path to the pre-trained model
         :return: ``Dict[str, Any]`` The evaluation results
         """
-        logger = getLogger()
-
         config, model, dataset, train_data, valid_data, test_data = self.get_model_and_dataset()
 
         is_not_random = config["model"] != "Random"
 
-        logger.info(f"Adjusted config: \n{config}")
+        self.logger.info(f"Adjusted config: \n{config}")
         trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
         if is_not_random:
             trainer.resume_checkpoint(model_path)
@@ -239,7 +244,7 @@ class RecboleRunner:
         trainer.fit(train_data, valid_data, saved=False, show_progress=True)
 
         test_result = trainer.evaluate(test_data, load_best_model=is_not_random, show_progress=config["show_progress"])
-        logger.info(set_color("test result", "yellow") + f": {test_result}")
+        self.logger.info(set_color("test result", "yellow") + f": {test_result}")
 
         return {"test_result": test_result}
 
@@ -269,7 +274,7 @@ class RecboleRunner:
 
         all_results[self.dataset_name][index] = results
 
-        print(f"Saving results to {path}, results: {results}")
+        self.logger.info(f"Saving results to {path}, results: {set_color(str(results), 'blue')}")
         with open(path, "w") as file:
             json.dump(all_results, file)
 
@@ -283,7 +288,7 @@ class RecboleRunner:
         original_alpha = self.config_dict["zipf_alpha"] if "zipf_alpha" in self.config_dict else 0.94  # Save original value
 
         for alpha in alpha_values:
-            print(f"Evaluating zipf_alpha={alpha}")
+            self.logger.info(f"Evaluating zipf_alpha={set_color(alpha, 'blue')}")
             self.config_dict["zipf_alpha"] = alpha
             # Force retraining by setting retrain to True
             self.retrain = True
