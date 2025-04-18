@@ -23,9 +23,8 @@ set of user(u)-item(i) pairs, :math:`\hat r_{u i}` represents the score predicte
 """
 import json
 import os
-from datetime import datetime
 from logging import getLogger
-from typing import Tuple, Dict, List, Any
+from typing import Tuple, Dict, Any
 
 import numpy as np
 from collections import Counter
@@ -38,7 +37,6 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from recbole.evaluator.utils import _binary_clf_curve
 from recbole.evaluator.base_metric import AbstractMetric, TopkMetric, LossMetric
 from recbole.utils import EvaluatorType
-
 
 # TopK Metrics
 
@@ -789,6 +787,7 @@ class Exposure(AbstractMetric):
     def __init__(self, config):
         super().__init__(config)
         self.topk = config["topk"]
+        self.item_id_field = config["ITEM_ID_FIELD"]
 
     def exposure(self, rec_items: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -799,13 +798,45 @@ class Exposure(AbstractMetric):
         items, exposure = rec_items.flatten().unique(return_counts=True)
         return items, exposure
 
+    def exposure_disparity_popularity_global(self, exposure: torch.Tensor, items: torch.Tensor, split_ratio: float) -> torch.Tensor:
+        """
+        Calculate the exposure disparity based on popularity for the entire dataset
+        :param exposure: ``Tensor`` of shape (n_rec_items)
+        :param items: ``Tensor`` of shape (n_rec_items)
+        :param split_ratio: ``float`` ratio to split items into popular and unpopular groups
+        :return: ``torch.Tensor``
+        """
+        from RecboleRunner import RunnerManager
+        dataset = RunnerManager.get_runner().dataset
+
+        # Count the number of interactions for each item in the dataset
+        item_interactions = torch.bincount(dataset[self.item_id_field])
+
+        # Determine the threshold for popular and unpopular groups
+        threshold = torch.quantile(item_interactions.float(), split_ratio)
+
+        # Divide items into popular and unpopular groups based on interactions
+        popular_items = (item_interactions >= threshold).nonzero(as_tuple=True)[0]
+        unpopular_items = (item_interactions < threshold).nonzero(as_tuple=True)[0]
+
+        # Calculate average exposure for each group
+        item_exposure = torch.zeros(item_interactions.size(0), dtype=torch.float)
+        item_exposure[items] = exposure.float()
+
+        avg_exposure_popular = item_exposure[popular_items].mean()
+        avg_exposure_unpopular = item_exposure[unpopular_items].mean()
+
+        # Calculate disparity
+        disparity = torch.abs(avg_exposure_popular - avg_exposure_unpopular)
+        return disparity
+
     def exposure_disparity_popularity(self, exposure: torch.Tensor, items: torch.Tensor, split_ratio: float) -> torch.Tensor:
         """
         Calculate the exposure disparity based on popularity
         :param exposure: ``Tensor`` of shape (n_rec_items)
         :param items: ``Tensor`` of shape (n_rec_items)
         :param split_ratio: ``float`` ratio to split items into popular and unpopular groups
-        :return: ``None``
+        :return: ``torch.Tensor``
         """
         # Make tensor of exposure where their item id is their index
         item_exposure = torch.zeros(items.max() + 1, dtype=torch.float)
@@ -817,7 +848,7 @@ class Exposure(AbstractMetric):
 
         # Divide items into groups based on their exposure
         popular = (item_exposure >= threshold).nonzero(as_tuple=True)[0]  # Top split_ratio% exposure
-        unpopular = (item_exposure < threshold).nonzero(as_tuple=True)[0]  # Bottom (1 - split_ratio)% exposure
+        unpopular = (item_exposure < threshold).nonzero(as_tuple=True)[0]  # Bottom (100 - split_ratio)% exposure
 
         # Get the average exposure of popular and unpopular items
         avg_exposure_popular = item_exposure[popular].mean()
@@ -828,12 +859,12 @@ class Exposure(AbstractMetric):
 
         return disparity
 
-    def normalize_at_k(self, disparity_exposure: torch.Tensor, num_users: int, num_items: int, split: str) -> Dict[str, float]:
+    def normalize_at_k(self, name: str, disparity_exposure: torch.Tensor, num_users: int, num_items: int, split: str) -> Dict[str, float]:
         results = {}
         for topk in self.topk:
             normalization_factor = (num_users * topk) / num_items
             normalized_disparity_exposure = disparity_exposure / normalization_factor
-            results[f"exposure_{split}@{topk}"] = round(normalized_disparity_exposure.item(), self.decimal_place)
+            results[f"{name}_{split}@{topk}"] = round(normalized_disparity_exposure.item(), self.decimal_place)
         return results
 
     def used_info(self, dataobject):
@@ -848,9 +879,16 @@ class Exposure(AbstractMetric):
         results: Dict[str, Any] = {}
 
         splits = [0.50, 0.80, 0.90, 0.99]
+
         for split in splits:
             disparity_exposure = self.exposure_disparity_popularity(exposure, items, split)
-            results.update(self.normalize_at_k(disparity_exposure, num_users, len(items), f"{int(split*100)}-{int(100-(split*100))}"))
+            split_formatted = f"{int(split*100)}-{int(100-(split*100))}"
+            normalised_values = self.normalize_at_k("exposure", disparity_exposure, num_users, len(items), split_formatted)
+            results.update(normalised_values)
+
+            disparity_exposure_global = self.exposure_disparity_popularity_global(exposure, items, split)
+            normalised_values_global = self.normalize_at_k("exposure_global", disparity_exposure_global, num_users, len(items), split_formatted)
+            results.update(normalised_values_global)
 
         return results
 
