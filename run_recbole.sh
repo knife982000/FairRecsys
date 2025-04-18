@@ -4,8 +4,9 @@ GPUS=1
 OVERSAMPLE="0.0"
 UNDERSAMPLE="0.0"
 
-while getopts ":d:m:eg:n:o:u:h" opt; do
+while getopts ":c:d:m:eg:n:o:u:h" opt; do
   case $opt in
+    c) CONFIG_FILE="$OPTARG" ;;
     d) DATASET="$OPTARG" ;;
     m) MODEL="$OPTARG" ;;
     e) EVAL="-e" ;;
@@ -23,10 +24,16 @@ while getopts ":d:m:eg:n:o:u:h" opt; do
 done
 
 MEMORY="$((GPUS * 32))G"
-JOB_NAME="Rec-${MODEL}-${DATASET}"
-OUTPUT_FILE="${DATASET}-${MODEL}"
+if [ -n "$DATASET" ] && [ -n "$MODEL" ]; then
+  JOB_NAME="Rec-${MODEL}-${DATASET}"
+  OUTPUT_FILE="${DATASET}-${MODEL}"
+  [ -n "$MODEL" ] && NAME="${MODEL}"
+else
+  JOB_NAME="Rec-Multi"
+  OUTPUT_FILE="Multi"
+fi
+
 CPUS="$((GPUS * 10))"
-NAME="${MODEL}"
 if (( $(echo "$OVERSAMPLE != 0.0" | bc) )); then
   NAME="${NAME}_O_${OVERSAMPLE}"
   OUTPUT_FILE="${OUTPUT_FILE}_O_${OVERSAMPLE}"
@@ -40,23 +47,29 @@ if [ -n "$EVAL" ]; then
   OUTPUT_FILE="${OUTPUT_FILE}_Eval"
 fi
 OUTPUT_FILE="${OUTPUT_FILE}.log"
+ERROR_FILE="${OUTPUT_FILE}.err"
 
 echo "Submitting job with the following parameters:"
-echo "  Dataset:        $DATASET"
-echo "  Model:          $MODEL"
+[ -n "$DATASET" ]     && echo "  Dataset:        $DATASET"
+[ -n "$MODEL" ]       && echo "  Model:          $MODEL"
+[ -n "$CONFIG_FILE" ] && echo "  Config File:    $CONFIG_FILE"
 echo "  GPUs:           $GPUS"
 echo "  Memory:         $MEMORY"
 echo "  Job Name:       $JOB_NAME"
 echo "  Output File:    $OUTPUT_FILE"
+echo "  Error File:     $ERROR_FILE"
 echo "  CPUs:           $CPUS"
 [ -n "$NODE" ] && echo "  Node:           $NODE"
 (( $(echo "$OVERSAMPLE != 0.0" | bc) ))  && echo "  Oversample:     $OVERSAMPLE"
 (( $(echo "$UNDERSAMPLE != 0.0" | bc) )) && echo "  Undersample:    $UNDERSAMPLE"
 [ -n "$EVAL" ] && echo "  Evaluation:     Enabled"
 
-sbatch_command="sbatch --job-name=\"$JOB_NAME\" --output=\"$OUTPUT_FILE\" --gres=gpu:$GPUS --mem=$MEMORY --cpus-per-task=$CPUS"
+sbatch_command="sbatch --job-name=\"$JOB_NAME\" --output=\"$OUTPUT_FILE\" --error=\"$ERROR_FILE\" --gres=gpu:$GPUS --mem=$MEMORY --cpus-per-task=$CPUS"
 
 [ -n "$NODE" ] && sbatch_command+=" --nodelist=\"$NODE\""
-
-sbatch_command="$sbatch_command --wrap=\"singularity exec --nv recbole.sif bash run_model.sh -d $DATASET -m $MODEL -s $NAME -o $OVERSAMPLE -u $UNDERSAMPLE $EVAL\""
+if [ -n "$DATASET" ] && [ -n "$MODEL" ]; then
+  sbatch_command="$sbatch_command --wrap=\"singularity exec --nv recbole.sif bash run_model.sh -d $DATASET -m $MODEL -s $NAME -o $OVERSAMPLE -u $UNDERSAMPLE $EVAL\""
+else
+  sbatch_command="$sbatch_command --wrap=\"singularity exec --nv recbole.sif bash run_model.sh -c $CONFIG_FILE\""
+fi
 eval "$sbatch_command"
