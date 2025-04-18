@@ -17,7 +17,7 @@ from config import *
 
 
 class RecboleRunner:
-    def __init__(self, model_name: str, dataset_name: str, config_file_list: List[str] = None, config_dict: Dict[str, Any] = None, retrain: bool = False, over_sample_ratio: float = 0.0, under_sample_ratio: float = 0.0, save_model_as: str = None):
+    def __init__(self, model_name: str, dataset_name: str, config_file_list: List[str] = None, config_dict: Dict[str, Any] = None, evaluate: bool = False, retrain: bool = False, over_sample_ratio: float = 0.0, under_sample_ratio: float = 0.0, save_model_as: str = None):
         self.model_name = model_name
         self.dataset_name = dataset_name
         self.config_dict = config_dict if config_dict is not None else {}
@@ -26,6 +26,7 @@ class RecboleRunner:
         self.config = self.create_config()
         self.gpus = self.get_available_cuda_gpus()
         self.retrain = retrain
+        self.evaluate = evaluate
         self.over_sample_ratio = over_sample_ratio
         self.under_sample_ratio = under_sample_ratio
 
@@ -77,12 +78,13 @@ class RecboleRunner:
         config["save_model_as"] = self.save_model_as if self.save_model_as is not None else f"{self.model_name}"
         return config
 
-    def run_recbole(self, rank: int = None, queue: mp.SimpleQueue = None) -> dict[str, Any]:
+    def run_recbole(self, rank: int = None, queue: mp.SimpleQueue = None, model_path: str = None) -> dict[str, Any]:
         """
         Runs recbole, based on the run function from RecBole in "recbole.quick_start.quick_start"
         Changed to work with custom models and removed evaluation of the model after training
         :param rank: ``int`` The rank of the process
         :param queue: ``mp.SimpleQueue`` The queue for multiprocessing
+        :param model_path: ``str`` The path to the pre-trained model
         :return: ``dict[str, Any]`` The training results
         """
         logger = getLogger()
@@ -95,6 +97,9 @@ class RecboleRunner:
         logger.info(config)
 
         trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
+
+        if model_path is not None:
+            trainer.resume_checkpoint(model_path)
 
         best_valid_score, best_valid_result = trainer.fit(
             train_data, valid_data, saved=True, show_progress=config["show_progress"]
@@ -116,13 +121,13 @@ class RecboleRunner:
             dist.destroy_process_group()
         return result
 
-    def run_recbole_multi_gpu(self) -> Dict[str, Any]:
+    def run_recbole_multi_gpu(self, model_path: str = None) -> Dict[str, Any]:
         """
         Run and train the model on the specified dataset using multiple GPUs on a single node.
         Based on run function from RecBole in "recbole.quick_start.quick_start"
         """
         queue = mp.get_context("spawn").SimpleQueue()
-        mp.spawn(self.run_recbole, args=(queue,), nprocs=self.config_dict["nproc"], join=True)
+        mp.spawn(self.run_recbole, args=(queue, model_path), nprocs=self.config_dict["nproc"], join=True)
 
         result = None if queue.empty() else queue.get()
         return result
@@ -138,13 +143,19 @@ class RecboleRunner:
         # Skip pre-trained model check if retrain is True
         if not self.retrain:
             trained_model = self.get_trained_model_path()
+        else :
+            trained_model = None
+
+        if self.evaluate:
             if trained_model is not None:
-                print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Skipping training.")
+                print(f"Model {self.model_name} has been trained on dataset {self.dataset_name}. Starting evaluation.")
                 return self.evaluate_pre_trained_model(trained_model)
+            else:
+                raise ValueError(f"Model with name {self.save_model_as} has not been trained yet.")
 
         if len(self.gpus) == 1:
-            return self.run_recbole()
-        return self.run_recbole_multi_gpu()
+            return self.run_recbole(model_path=trained_model)
+        return self.run_recbole_multi_gpu(trained_model)
 
     def get_available_cuda_gpus(self, max_gpus: int = None) -> List[str]:
         """

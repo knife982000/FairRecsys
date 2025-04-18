@@ -1,5 +1,6 @@
 import argparse
-from config import *
+
+from config import methods, datasets, config_dictionary, config_file, eval_config_file
 from RecboleRunner import RecboleRunner, RunnerManager
 
 
@@ -7,8 +8,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run and evaluate RecBole models")
     parser.add_argument("-d", "--dataset", type=str, help=f"Dataset to use: {datasets}")
     parser.add_argument("-m", "--method", type=str, help=f"Method to use: {methods.keys()}")
-    parser.add_argument("-r", "--retrain", type=bool, help=f"Ignore pre-trained model and retrain", default=False)
-    parser.add_argument("-e", "--evaluate", type=bool, help=f"Evaluate the selected model", default=False)
+    parser.add_argument("-r", "--retrain", action="store_true", help="Ignore pre-trained model and retrain")
+    parser.add_argument("-e", "--evaluate", action="store_true", help="Evaluate the selected model")
     parser.add_argument("-o", "--oversample", type=float, help=f"Ratio for oversampling", default=0.0)
     parser.add_argument("-u", "--undersample", type=float, help=f"Ratio for undersampling", default=0.0)
     parser.add_argument("-s", "--save_model_as", type=str, help=f"Name to save model as", default=None)
@@ -44,7 +45,7 @@ if __name__ == "__main__":
 
     print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
     RunnerManager.set_runner(RecboleRunner(model_name=args.method, dataset_name=args.dataset, config_file_list=config_file, config_dict=config_dictionary,
-                                           retrain=args.retrain, over_sample_ratio=args.oversample, under_sample_ratio=args.undersample, save_model_as=args.save_model_as))
+                                           retrain=args.retrain, evaluate=args.evaluate, over_sample_ratio=args.oversample, under_sample_ratio=args.undersample, save_model_as=args.save_model_as))
 
     if args.alpha_values:
         alpha_values = [float(a) for a in args.alpha_values.split(",")]
