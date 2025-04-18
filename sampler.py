@@ -1,4 +1,7 @@
+from logging import getLogger
+
 from RecBole.recbole.data.dataset.dataset import Dataset
+from RecBole.recbole.utils.logger import set_color
 
 
 class InteractionSampler:
@@ -15,11 +18,19 @@ class InteractionSampler:
         :param oversample_ratio: ``float`` The ratio of the sample size to the original dataset size when oversampling
         :return: ``Dataset`` The sampled dataset
         """
-        if undersample_ratio > 0 and oversample_ratio > 0:
+        logger = getLogger()
+        if undersample_ratio == 0 and oversample_ratio == 0:
+            logger.warning(set_color("Both undersample_ratio and oversample_ratio are 0, the dataset will not be sampled.", color='yellow'))
+            return self.dataset
+        if undersample_ratio == 1 and oversample_ratio == 1:
+            logger.warning(set_color("Both undersample_ratio and oversample_ratio are 1, the dataset will not be sampled.", color='yellow'))
+            return self.dataset
+
+        if undersample_ratio > 0 and oversample_ratio > 0 and undersample_ratio != 1 and oversample_ratio != 1:
             self.mixed_sample(oversample_ratio, undersample_ratio)
-        elif undersample_ratio > 0:
+        elif undersample_ratio > 0 and undersample_ratio != 1:
             self.undersample(undersample_ratio)
-        elif oversample_ratio > 0:
+        elif oversample_ratio > 0 and oversample_ratio != 1:
             self.oversample(oversample_ratio)
         else:
             raise ValueError("At least one of undersample_ratio or oversample_ratio must be greater than 0.")
@@ -43,7 +54,7 @@ class InteractionSampler:
         """
         if target_ratio < 1:
             raise ValueError("Target ratio must be greater than or equal to 1.")
-        return self.__sample(target_ratio, replace=True, inverse=True)
+        return self.__sample(target_ratio, replace=True, inverse=False)
 
     def undersample(self, retain_ratio: float):
         """
