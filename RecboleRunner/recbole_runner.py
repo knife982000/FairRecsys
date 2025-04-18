@@ -90,11 +90,6 @@ class RecboleRunner:
         :param model_path: ``str`` The path to the pre-trained model
         :return: ``dict[str, Any]`` The training results
         """
-        from RecboleRunner import RunnerManager
-        if RunnerManager.get_runner() is None:
-            self.logger.warning("RunnerManager is None, setting it to the current runner, most likely due to multiprocessing")
-            RunnerManager.set_runner(self)
-
         config_dict = self.config_dict
         if rank is not None:
             config_dict["local_rank"] = rank

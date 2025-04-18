@@ -38,6 +38,9 @@ from recbole.evaluator.utils import _binary_clf_curve
 from recbole.evaluator.base_metric import AbstractMetric, TopkMetric, LossMetric
 from recbole.utils import EvaluatorType
 
+from RecBole.recbole.data.utils import create_dataset
+
+
 # TopK Metrics
 
 class Hit(TopkMetric):
@@ -788,6 +791,7 @@ class Exposure(AbstractMetric):
         super().__init__(config)
         self.topk = config["topk"]
         self.item_id_field = config["ITEM_ID_FIELD"]
+        self.dataset = create_dataset(config)
 
     def exposure(self, rec_items: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -806,11 +810,8 @@ class Exposure(AbstractMetric):
         :param split_ratio: ``float`` ratio to split items into popular and unpopular groups
         :return: ``torch.Tensor``
         """
-        from RecboleRunner import RunnerManager
-        dataset = RunnerManager.get_runner().dataset
-
         # Count the number of interactions for each item in the dataset
-        item_interactions = torch.bincount(dataset[self.item_id_field])
+        item_interactions = torch.bincount(torch.tensor(self.dataset[self.item_id_field].values, dtype=torch.long))
 
         # Determine the threshold for popular and unpopular groups
         threshold = torch.quantile(item_interactions.float(), split_ratio)
