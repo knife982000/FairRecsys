@@ -55,4 +55,4 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 # Use srun to dynamically specify the output and error files
-srun --output="${outfile}" --error="${errfile}" bash run_model.sh -c "$CONFIG_FILE"
+srun --output="${outfile}" --error="${errfile}" singularity exec --nv recbole.sif bash run_model.sh -c "$CONFIG_FILE"

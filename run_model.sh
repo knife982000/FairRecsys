@@ -26,6 +26,8 @@ if [ -n "$CONFIG_FILE" ]; then
     # Skip empty lines and comments
     [[ -z "$line" || "$line" =~ ^# ]] && continue
 
+    echo "Processing line: $line"
+
     # Read parameters from the line in the file
     IFS=' ' read -r MODEL DATASET NAME OVERSAMPLE UNDERSAMPLE EVAL <<< "$line"
 
@@ -33,14 +35,14 @@ if [ -n "$CONFIG_FILE" ]; then
     echo "  Dataset:        $DATASET"
     echo "  Model:          $MODEL"
     echo "  Name:           $NAME"
-    (( $(echo "$OVERSAMPLE != 0.0" | bc) ))   && echo "  Oversample:     $OVERSAMPLE"
-    (( $(echo "$UNDERSAMPLE != 0.0" | bc) ))  && echo "  Undersample:    $UNDERSAMPLE"
+    echo "  Oversample:     $OVERSAMPLE"
+    echo "  Undersample:    $UNDERSAMPLE"
     [ "$EVAL" = "True" ] && echo "  Evaluation:     Enabled"
 
     # Construct the python command
     python_command="python3 main.py -d $DATASET -m $MODEL -s $NAME"
-    (( $(echo "$OVERSAMPLE != 0.0" | bc) ))   && python_command+=" -o $OVERSAMPLE"
-    (( $(echo "$UNDERSAMPLE != 0.0" | bc) ))  && python_command+=" -u $UNDERSAMPLE"
+    python_command+=" -o $OVERSAMPLE"
+    python_command+=" -u $UNDERSAMPLE"
     [ "$EVAL" = "True" ] && python_command+=" -e"
     eval "$python_command"
 
@@ -56,13 +58,13 @@ else
   echo "  Dataset:        $DATASET"
   echo "  Model:          $MODEL"
   echo "  Name:           $NAME"
-  [ -n "$OVERSAMPLE" ]  && (( $(echo "$OVERSAMPLE != 0.0" | bc) ))  && echo "  Oversample:     $OVERSAMPLE"
-  [ -n "$UNDERSAMPLE" ] && (( $(echo "$UNDERSAMPLE != 0.0" | bc) )) && echo "  Undersample:    $UNDERSAMPLE"
+  [ -n "$OVERSAMPLE" ]  && echo "  Oversample:     $OVERSAMPLE"
+  [ -n "$UNDERSAMPLE" ] && echo "  Undersample:    $UNDERSAMPLE"
   [ -n "$EVAL" ] && echo "  Evaluation:     Enabled"
 
   python_command="python3 main.py -d $DATASET -m $MODEL -s $NAME"
-  [ -n "$OVERSAMPLE" ]  && (( $(echo "$OVERSAMPLE != 0.0" | bc) ))  && python_command+=" --oversample $OVERSAMPLE"
-  [ -n "$UNDERSAMPLE" ] && (( $(echo "$UNDERSAMPLE != 0.0" | bc) )) && python_command+=" --undersample $UNDERSAMPLE"
+  [ -n "$OVERSAMPLE" ]  && python_command+=" -o $OVERSAMPLE"
+  [ -n "$UNDERSAMPLE" ] && python_command+=" -u $UNDERSAMPLE"
   [ -n "$EVAL" ] && python_command+=" $EVAL"
   eval "$python_command"
 fi
