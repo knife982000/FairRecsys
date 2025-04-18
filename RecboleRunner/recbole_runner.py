@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import sys
 from typing import Optional, Any, Dict, List
 
 import torch.multiprocessing as mp
@@ -34,6 +35,7 @@ class RecboleRunner:
         self.dataset = None
 
         init_logger(self.config)
+        self.logger.addHandler(logging.StreamHandler(sys.stdout))
 
         # Configuration for distributed training
         self.config_dict["offset"] = 0

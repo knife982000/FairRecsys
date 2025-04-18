@@ -1,7 +1,7 @@
 import argparse
 
 from config import methods, datasets, config_dictionary, config_file, eval_config_file
-from RecboleRunner import RecboleRunner, RunnerManager
+from RecboleRunner import RecboleRunner
 
 
 if __name__ == "__main__":
@@ -44,13 +44,13 @@ if __name__ == "__main__":
     np.unicode = np.str_
 
     print(f"\n------------- Running Recbole -------------\nArguments given: {args}\n")
-    RunnerManager.set_runner(RecboleRunner(model_name=args.method, dataset_name=args.dataset, config_file_list=config_file, config_dict=config_dictionary,
-                                           retrain=args.retrain, evaluate=args.evaluate, over_sample_ratio=args.oversample, under_sample_ratio=args.undersample, save_model_as=args.save_model_as))
+    runner = RecboleRunner(model_name=args.method, dataset_name=args.dataset, config_file_list=config_file, config_dict=config_dictionary, retrain=args.retrain,
+                           evaluate=args.evaluate, over_sample_ratio=args.oversample, under_sample_ratio=args.undersample, save_model_as=args.save_model_as)
 
     if args.alpha_values:
         alpha_values = [float(a) for a in args.alpha_values.split(",")]
-        results = RunnerManager.get_runner().grid_search_zipf_alpha(alpha_values)
+        results = runner.grid_search_zipf_alpha(alpha_values)
         print("Grid search results:", results)
     else:
-        results = RunnerManager.get_runner().run_and_evaluate_model()
-    RunnerManager.get_runner().save_metrics_results(results)
+        results = runner.run_and_evaluate_model()
+    runner.save_metrics_results(results)
