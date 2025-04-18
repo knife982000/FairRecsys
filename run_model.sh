@@ -42,7 +42,7 @@ if [ -n "$CONFIG_FILE" ]; then
     (( $(echo "$OVERSAMPLE != 0.0" | bc) ))   && python_command+=" -o $OVERSAMPLE"
     (( $(echo "$UNDERSAMPLE != 0.0" | bc) ))  && python_command+=" -u $UNDERSAMPLE"
     [ "$EVAL" = "True" ] && python_command+=" -e"
-    echo "$python_command"
+    eval "$python_command"
 
     # Remove the executed line from the file
     sed -i "/^$line$/d" "$CONFIG_FILE"
