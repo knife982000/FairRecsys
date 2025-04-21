@@ -47,7 +47,6 @@ if [ -n "$EVAL" ]; then
   OUTPUT_FILE="${OUTPUT_FILE}_Eval"
 fi
 OUTPUT_FILE="${OUTPUT_FILE}.log"
-ERROR_FILE="${OUTPUT_FILE}.err"
 
 echo "Submitting job with the following parameters:"
 [ -n "$DATASET" ]     && echo "  Dataset:        $DATASET"
@@ -57,14 +56,13 @@ echo "  GPUs:           $GPUS"
 echo "  Memory:         $MEMORY"
 echo "  Job Name:       $JOB_NAME"
 echo "  Output File:    $OUTPUT_FILE"
-echo "  Error File:     $ERROR_FILE"
 echo "  CPUs:           $CPUS"
 [ -n "$NODE" ] && echo "  Node:           $NODE"
 (( $(echo "$OVERSAMPLE != 0.0" | bc) ))  && echo "  Oversample:     $OVERSAMPLE"
 (( $(echo "$UNDERSAMPLE != 0.0" | bc) )) && echo "  Undersample:    $UNDERSAMPLE"
 [ -n "$EVAL" ] && echo "  Evaluation:     Enabled"
 
-sbatch_command="sbatch --job-name=\"$JOB_NAME\" --output=\"$OUTPUT_FILE\" --error=\"$ERROR_FILE\" --gres=gpu:$GPUS --mem=$MEMORY --cpus-per-task=$CPUS"
+sbatch_command="sbatch --job-name=\"$JOB_NAME\" --output=\"$OUTPUT_FILE\" --gres=gpu:$GPUS --mem=$MEMORY --cpus-per-task=$CPUS"
 
 [ -n "$NODE" ] && sbatch_command+=" --nodelist=\"$NODE\""
 if [ -n "$DATASET" ] && [ -n "$MODEL" ]; then
