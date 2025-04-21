@@ -2,7 +2,7 @@
 /venv/
 /log_tensorboard/
 /log/
-/dataset/
-/metrics_results/
+/dataset/*/
+/metrics_results/*/
 /plots/
 /saved_models/

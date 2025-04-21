@@ -4,9 +4,9 @@ import numpy as np
 import os
 
 datasets = {
-    "ML-1M": {"path": "dataset/ml-1m/ml-1m.inter", "item_id": "item_id:token"},
-    "Gowalla": {"path": "dataset/gowalla-merged/gowalla-merged.inter", "item_id": "item_id:token"},
-    "Steam": {"path": "dataset/steam-merged/steam-merged.inter", "item_id": "product_id:token"},
+    "ML-1M": {"path": "ml-1m/ml-1m.inter", "item_id": "item_id:token"},
+    "Gowalla": {"path": "gowalla-merged/gowalla-merged.inter", "item_id": "item_id:token"},
+    "Steam": {"path": "steam-merged/steam-merged.inter", "item_id": "product_id:token"},
 }
 
 

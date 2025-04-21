@@ -13,7 +13,7 @@ from RecBole.recbole.data.utils import create_dataset, data_preparation
 from RecBole.recbole.utils import get_trainer, set_color, init_logger
 from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
 
-from sampler import InteractionSampler
+from RecboleRunner.sampler import InteractionSampler
 from config import *
 
 
