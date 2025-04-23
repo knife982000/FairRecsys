@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("-u", "--undersample", type=float, help=f"Ratio for undersampling", default=0.0)
     parser.add_argument("-s", "--save_model_as", type=str, help=f"Name to save model as", default=None)
     parser.add_argument("-a", "--alpha_values", type=str, help="Comma-separated list of zipf_alpha values for grid search")
+    parser.add_argument("-z", "--apply_zipf", action="store_true", help="Apply Zipf's penalty to the model")
 
     args = parser.parse_args()
 
@@ -32,6 +33,9 @@ if __name__ == "__main__":
 
     if args.evaluate:
         config_file = eval_config_file
+
+    if args.apply_zipf:
+        config_dictionary["apply_zipf"] = True
 
     if args.dataset == "steam-merged":
         config_file.append("config_steam.yaml")

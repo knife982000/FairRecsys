@@ -16,6 +16,8 @@ from recbole.evaluator.register import Register
 import torch
 import copy
 
+from RecboleRunner.zipf_penalty import zipf_penalty_batch
+
 
 class DataStruct(object):
     def __init__(self):
@@ -148,6 +150,9 @@ class Collector(object):
             positive_u(Torch.Tensor): the row index of positive items for each user.
             positive_i(Torch.Tensor): the positive item id for each user.
         """
+        if self.config["apply_zipf"]:
+            scores_tensor = zipf_penalty_batch(self.config, scores_tensor)
+
         if self.register.need("rec.items"):
             # get topk
             _, topk_idx = torch.topk(
