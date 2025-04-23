@@ -1,2 +1,2 @@
-from loss import *
-from models import *
+from model.loss import *
+from model.models import *

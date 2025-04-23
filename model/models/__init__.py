@@ -1,1 +1,1 @@
-from bpr_entropy import BPREntropy
+from model.models.bpr_entropy import BPREntropy
