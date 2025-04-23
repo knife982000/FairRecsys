@@ -8,11 +8,11 @@ Reference:
 """
 
 import torch
-import torch.nn as nn
 
 from RecBole.recbole.model.init import xavier_normal_initialization
 from RecBole.recbole.model.loss import BPRLoss
-from RecBole.recbole.utils.enum_type import InputType
+from RecBole.recbole.utils import InputType
+
 from model.abstract_recommender import GeneralRecommenderZipf
 
 

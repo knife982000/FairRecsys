@@ -19,9 +19,8 @@ import torch.nn.functional as F
 from RecBole.recbole.model.init import xavier_normal_initialization
 from RecBole.recbole.model.layers import SparseDropout, BiGNNLayer
 from RecBole.recbole.model.loss import BPRLoss, EmbLoss
-from RecBole.recbole.utils.enum_type import InputType
+from RecBole.recbole.utils import InputType
 from model.abstract_recommender import GeneralRecommenderZipf
-
 
 class NGCFZipf(GeneralRecommenderZipf):
     r"""NGCF with Zipf's penalty to reduce popularity bias."""

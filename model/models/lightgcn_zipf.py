@@ -17,7 +17,7 @@ import torch
 
 from RecBole.recbole.model.init import xavier_uniform_initialization
 from RecBole.recbole.model.loss import BPRLoss, EmbLoss
-from RecBole.recbole.utils.enum_type import InputType
+from RecBole.recbole.utils import InputType
 from model.abstract_recommender import GeneralRecommenderZipf
 
 
