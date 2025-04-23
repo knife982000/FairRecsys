@@ -259,10 +259,12 @@ class RecboleRunner:
         else:
             all_results = {}
 
-        if self.dataset_name not in all_results:
-            all_results[self.dataset_name] = {}
+        # Ensure the dataset entry exists
+        all_results.setdefault(self.dataset_name, {})
 
         index = self.model_name if self.save_model_as is None else self.save_model_as
+        if self.config["apply_zipf"]:
+            index += "Zipf"
 
         # Merge old results with new results, where new results take precedence
         if index in all_results[self.dataset_name]:
