@@ -35,10 +35,6 @@ from recbole.utils import (
     get_environment,
 )
 
-from RecBole.recbole.model.general_recommender.bpr_zipf import BPRZipf
-import json
-import os
-
 
 def run(
     model,

@@ -1,8 +1,8 @@
 from RecBole.recbole.model.general_recommender.bpr_mmr_sim import BPRMMRSim
-from RecBole.recbole.model.general_recommender.lightgcn_zipf import LightGCNZipf
+from model.models.lightgcn_zipf import LightGCNZipf
 from RecBole.recbole.model.general_recommender.multivae_zipf import MultiVAEZipf
-from RecBole.recbole.model.general_recommender.ngcf_zipf import NGCFZipf
-from RecBole.recbole.model.general_recommender.bpr_zipf import BPRZipf
+from model.models.ngcf_zipf import NGCFZipf
+from model.models.bpr_zipf import BPRZipf
 
 ##################################
 ######### Configurations #########
