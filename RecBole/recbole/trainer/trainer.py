@@ -47,6 +47,8 @@ from recbole.utils import (
 )
 from torch.nn.parallel import DistributedDataParallel
 
+from RecboleRunner import MMRReranker
+
 
 class AbstractTrainer(object):
     r"""Trainer Class is used to manage the training and evaluation processes of recommender system models.
@@ -618,6 +620,14 @@ class Trainer(AbstractTrainer):
                 iter_data.set_postfix_str(
                     set_color("GPU RAM: " + get_gpu_usage(self.device), "yellow")
                 )
+
+            if self.config["apply_mmr"]:
+                if self.model.user_embedding is not None or self.model.item_embedding is not None:
+                    reranker = MMRReranker(self.config)
+                    scores = reranker.rerank(interaction, scores, self.model.user_embedding, self.model.item_embedding)
+                else:
+                    self.logger.error(f"MMR reranking is not supported for this model, user embeddings found: {self.model.user_embedding is not None}, item embeddings found: {self.model.item_embedding is not None}.")
+
             self.eval_collector.eval_batch_collect(
                 scores, interaction, positive_u, positive_i
             )
