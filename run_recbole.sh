@@ -4,12 +4,13 @@ GPUS=1
 OVERSAMPLE="0.0"
 UNDERSAMPLE="0.0"
 
-while getopts ":c:d:m:eg:n:o:u:h" opt; do
+while getopts ":c:d:m:erg:n:o:u:h" opt; do
   case $opt in
     c) CONFIG_FILE="$OPTARG" ;;
     d) DATASET="$OPTARG" ;;
     m) MODEL="$OPTARG" ;;
     e) EVAL="-e" ;;
+    r) RERANK="-mmr"
     g) GPUS="$OPTARG" ;;
     n) NODE="$OPTARG" ;;
     o) OVERSAMPLE="$OPTARG" ;;
@@ -29,8 +30,8 @@ if [ -n "$DATASET" ] && [ -n "$MODEL" ]; then
   OUTPUT_FILE="${DATASET}-${MODEL}"
   [ -n "$MODEL" ] && NAME="${MODEL}"
 else
-  JOB_NAME="Rec-Multi"
-  OUTPUT_FILE="Multi"
+  JOB_NAME="Rec-Multi${CONFIG_FILE}"
+  OUTPUT_FILE="Multi${CONFIG_FILE}"
 fi
 
 CPUS="$((GPUS * 10))"
@@ -61,12 +62,13 @@ echo "  CPUs:           $CPUS"
 (( $(echo "$OVERSAMPLE != 0.0" | bc) ))  && echo "  Oversample:     $OVERSAMPLE"
 (( $(echo "$UNDERSAMPLE != 0.0" | bc) )) && echo "  Undersample:    $UNDERSAMPLE"
 [ -n "$EVAL" ] && echo "  Evaluation:     Enabled"
+[ -n "$RERANK" ] && echo "  MMR Rerank:     Enabled"
 
 sbatch_command="sbatch --job-name=\"$JOB_NAME\" --output=\"$OUTPUT_FILE\" --gres=gpu:$GPUS --mem=$MEMORY --cpus-per-task=$CPUS"
 
 [ -n "$NODE" ] && sbatch_command+=" --nodelist=\"$NODE\""
 if [ -n "$DATASET" ] && [ -n "$MODEL" ]; then
-  sbatch_command="$sbatch_command --wrap=\"singularity exec --nv recbole.sif bash run_model.sh -d $DATASET -m $MODEL -s $NAME -o $OVERSAMPLE -u $UNDERSAMPLE $EVAL\""
+  sbatch_command="$sbatch_command --wrap=\"singularity exec --nv recbole.sif bash run_model.sh -d $DATASET -m $MODEL -s $NAME -o $OVERSAMPLE -u $UNDERSAMPLE $EVAL $RERANK\""
 else
   sbatch_command="$sbatch_command --wrap=\"singularity exec --nv recbole.sif bash run_model.sh -c $CONFIG_FILE\""
 fi
