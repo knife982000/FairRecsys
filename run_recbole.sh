@@ -10,7 +10,7 @@ while getopts ":c:d:m:erg:n:o:u:h" opt; do
     d) DATASET="$OPTARG" ;;
     m) MODEL="$OPTARG" ;;
     e) EVAL="-e" ;;
-    r) RERANK="-mmr"
+    r) RERANK="-r" ;;
     g) GPUS="$OPTARG" ;;
     n) NODE="$OPTARG" ;;
     o) OVERSAMPLE="$OPTARG" ;;

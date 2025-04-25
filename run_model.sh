@@ -1,6 +1,6 @@
 #!/bin/bash
 
-while getopts ":c:d:m:s:o:uerh" opt; do
+while getopts ":c:d:m:s:o:uerqh" opt; do
   case $opt in
     c) CONFIG_FILE="$OPTARG" ;;
     d) DATASET="$OPTARG" ;;
@@ -8,10 +8,11 @@ while getopts ":c:d:m:s:o:uerh" opt; do
     s) NAME="$OPTARG" ;;
     o) OVERSAMPLE="$OPTARG" ;;
     u) UNDERSAMPLE="$OPTARG" ;;
-    e) EVAL="-e" ;;
-    r) RERANK="-mmr" ;;
+    e) EVAL="True" ;;
+    r) RERANK="True" ;;
+    q) QUEUE="True" ;;
     h)
-      echo "Usage: $0 -d <DATASET> -m <MODEL> -s <NAME> [-o <OVERSAMPLE=0>] [-u <UNDERSAMPLE=0>] [-e (evaluate)] [-r (mmr reranking)] [-c <CONFIG_FILE>] [-h]"
+      echo "Usage: $0 -d <DATASET> -m <MODEL> -s <NAME> [-o <OVERSAMPLE=0>] [-u <UNDERSAMPLE=0>] [-e (evaluate)] [-r (mmr reranking)] [-q (using queue)] [-c <CONFIG_FILE>] [-h]"
       exit 0
       ;;
     \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
@@ -50,6 +51,7 @@ if [ -n "$CONFIG_FILE" ]; then
 
     # Remove the executed line from the file
     sed -i "/^$line$/d" "$CONFIG_FILE"
+    [ "$QUEUE" = "True" ] && kill -s SIGTERM $$
   done < "$CONFIG_FILE"
 else
   if [ -z "$DATASET" ] || [ -z "$MODEL" ]; then
@@ -59,7 +61,7 @@ else
   echo "Running Python script with the following parameters:"
   echo "  Dataset:        $DATASET"
   echo "  Model:          $MODEL"
-  [ -n "$NAME" ] echo "  Name:           $NAME"
+  [ -n "$NAME" ] && echo "  Name:           $NAME"
   [ -n "$OVERSAMPLE" ]  && echo "  Oversample:     $OVERSAMPLE"
   [ -n "$UNDERSAMPLE" ] && echo "  Undersample:    $UNDERSAMPLE"
   [ -n "$EVAL" ] && echo "  Evaluation:     Enabled"
