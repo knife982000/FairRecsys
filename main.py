@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--save_model_as", type=str, help=f"Name to save model as", default=None)
     parser.add_argument("-a", "--alpha_values", type=str, help="Comma-separated list of zipf_alpha values for grid search")
     parser.add_argument("-z", "--apply_zipf", action="store_true", help="Apply Zipf's penalty to the model")
+    parser.add_argument("-mmr", "--mmr", action="store_true", help="Use MMR for reranking")
 
     args = parser.parse_args()
 
@@ -30,6 +31,12 @@ if __name__ == "__main__":
     if args.method not in methods.keys():
         print(f"Method {args.method} not supported. Supported methods: {methods.keys()}")
         exit(1)
+
+    if args.mmr:
+        if args.evaluate:
+            config_dictionary["apply_mmr"] = True
+        else:
+            print("MMR reranking can only be used during evaluation!")
 
     if args.evaluate:
         config_file = eval_config_file

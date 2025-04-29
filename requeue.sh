@@ -18,11 +18,9 @@ iteration=${restarts:-0}
 
 # Dynamically set output and error filenames
 outfile="${SLURM_JOB_ID}_${iteration}.out"
-errfile="${SLURM_JOB_ID}_${iteration}.err"
 
 # Print filenames for debugging
 echo "Output file: ${outfile}"
-echo "Error file: ${errfile}"
 
 # Define a SIGTERM handler for requeueing
 term_handler() {
@@ -55,4 +53,4 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 # Use srun to dynamically specify the output and error files
-srun --output="${outfile}" --error="${errfile}" singularity exec --nv recbole.sif bash run_model.sh -c "$CONFIG_FILE"
+srun --output="${outfile}" singularity exec --nv recbole.sif bash run_model.sh -c "$CONFIG_FILE" -q

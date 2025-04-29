@@ -14,7 +14,7 @@ from RecBole.recbole.utils import get_trainer, set_color, init_logger
 from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
 
 from RecboleRunner.sampler import InteractionSampler
-from config import *
+from config import model_folder, metrics_results_folder, methods
 
 
 class RecboleRunner:
@@ -265,6 +265,9 @@ class RecboleRunner:
         index = self.model_name if self.save_model_as is None else self.save_model_as
         if self.config["apply_zipf"]:
             index += "Zipf"
+
+        if self.config["apply_mmr"]:
+            index += "MMR"
 
         # Merge old results with new results, where new results take precedence
         if index in all_results[self.dataset_name]:
