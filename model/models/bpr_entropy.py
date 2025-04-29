@@ -13,7 +13,7 @@ class BPREntropy(BPR):
 
     def __init__(self, config, dataset):
         super(BPREntropy, self).__init__(config, dataset)
-        self.loss = EntropyLoss(BPRLoss, dataset, self.ITEM_ID, config["alpha"] if "alpha" in config else 1)
+        self.loss = EntropyLoss(BPRLoss, dataset, self.ITEM_ID, config["entropy_alpha"] if "entropy_alpha" in config else 1)
 
     def calculate_loss(self, interaction):
         user = interaction[self.USER_ID]

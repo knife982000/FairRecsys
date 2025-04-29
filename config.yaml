@@ -30,3 +30,6 @@ topk: 10
 
 # Zipf Settings
 zipf_alpha: 0.94
+
+# Entropy settings
+entropy_alpha: 0.75
