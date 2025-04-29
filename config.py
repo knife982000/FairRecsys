@@ -1,6 +1,4 @@
-from model.models.lightgcn_zipf import LightGCNZipf
-from model.models.ngcf_zipf import NGCFZipf
-from model.models.bpr_zipf import BPRZipf
+from model import BPREntropy
 
 ##################################
 ######### Configurations #########
@@ -8,8 +6,7 @@ from model.models.bpr_zipf import BPRZipf
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = {"BPR": None, "LightGCN": None, "NGCF": None,"Random": None, "BPRZipf": BPRZipf,
-           "LightGCNZipf": LightGCNZipf, "NGCFZipf": NGCFZipf}
+methods = {"BPR": None, "LightGCN": None, "NGCF": None,"Random": None, "BPREntropy": BPREntropy}
 
 datasets = ["ml-100k", "ml-1m", "ml-20m", "gowalla-merged", "steam-merged"]
 config_dictionary = {
