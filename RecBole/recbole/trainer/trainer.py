@@ -47,7 +47,7 @@ from recbole.utils import (
 )
 from torch.nn.parallel import DistributedDataParallel
 
-from RecboleRunner import MMRReranker
+from RecboleRunner import MMRReranker, zipf_penalty_batch
 
 
 class AbstractTrainer(object):
@@ -620,6 +620,8 @@ class Trainer(AbstractTrainer):
                 iter_data.set_postfix_str(
                     set_color("GPU RAM: " + get_gpu_usage(self.device), "yellow")
                 )
+            if self.config["apply_zipf"]:
+                scores = zipf_penalty_batch(self.config, scores)
 
             if self.config["apply_mmr"]:
                 if self.model.user_embedding is not None or self.model.item_embedding is not None:
