@@ -27,7 +27,7 @@ def zipf_penalty_singular(config, score, item):
     """Apply Zipf's penalty to the given scores."""
     item_popularity = build_item_popularity(config)
 
-    zipf_penalty = get_alpha(config) * torch.log1p(item_popularity[item])
+    zipf_penalty = get_alpha(config) * torch.log1p(item_popularity[item] + 1)
     return score - zipf_penalty
 
 
