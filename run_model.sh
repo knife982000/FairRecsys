@@ -1,6 +1,6 @@
 #!/bin/bash
 
-while getopts ":c:d:m:s:o:uerqh" opt; do
+while getopts ":c:d:m:s:o:uerzqh" opt; do
   case $opt in
     c) CONFIG_FILE="$OPTARG" ;;
     d) DATASET="$OPTARG" ;;
@@ -10,6 +10,7 @@ while getopts ":c:d:m:s:o:uerqh" opt; do
     u) UNDERSAMPLE="$OPTARG" ;;
     e) EVAL="True" ;;
     r) RERANK="True" ;;
+    z) ZIPF="True" ;;
     q) QUEUE="True" ;;
     h)
       echo "Usage: $0 -d <DATASET> -m <MODEL> -s <NAME> [-o <OVERSAMPLE=0>] [-u <UNDERSAMPLE=0>] [-e (evaluate)] [-r (mmr reranking)] [-q (using queue)] [-c <CONFIG_FILE>] [-h]"
@@ -31,7 +32,7 @@ if [ -n "$CONFIG_FILE" ]; then
     echo "Processing line: $line"
 
     # Read parameters from the line in the file
-    IFS=' ' read -r MODEL DATASET NAME OVERSAMPLE UNDERSAMPLE EVAL RERANK <<< "$line"
+    IFS=' ' read -r MODEL DATASET NAME OVERSAMPLE UNDERSAMPLE EVAL RERANK ZIPF<<< "$line"
 
     echo "Running Python script with the following parameters:"
     echo "  Dataset:        $DATASET"
@@ -40,7 +41,8 @@ if [ -n "$CONFIG_FILE" ]; then
     echo "  Oversample:     $OVERSAMPLE"
     echo "  Undersample:    $UNDERSAMPLE"
     [ "$EVAL" = "True" ] && echo "  Evaluation:     Enabled"
-    [ "$RERANK" = "True" ] && echo "  MMR-Reranking   Enabled"
+    [ "$RERANK" = "True" ] && echo "  MMR-Reranking:  Enabled"
+    [ "$ZIPF" = "True" ] && echo "  ZIPS Penalty:   Enabled"
     # Construct the python command
     python_command="python3 main.py -d $DATASET -m $MODEL -s $NAME"
     python_command+=" -o $OVERSAMPLE"
@@ -66,11 +68,13 @@ else
   [ -n "$UNDERSAMPLE" ] && echo "  Undersample:    $UNDERSAMPLE"
   [ -n "$EVAL" ] && echo "  Evaluation:     Enabled"
   [ -n "$RERANK" ] && echo "  MMR rerank:     Enabled"
+  [ -n "$ZIPF" ] && echo "  ZIPS Penalty:   Enabled"
 
   python_command="python3 main.py -d $DATASET -m $MODEL -s $NAME"
   [ -n "$OVERSAMPLE" ]  && python_command+=" -o $OVERSAMPLE"
   [ -n "$UNDERSAMPLE" ] && python_command+=" -u $UNDERSAMPLE"
   [ -n "$EVAL" ] && python_command+=" -e"
   [ -n "$RERANK" ] && python_command+=" -mmr"
+  [ -n "$ZIPF" ] && python_command+=" -z"
   eval "$python_command"
 fi

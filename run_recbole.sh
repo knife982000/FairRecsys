@@ -4,13 +4,14 @@ GPUS=1
 OVERSAMPLE="0.0"
 UNDERSAMPLE="0.0"
 
-while getopts ":c:d:m:erg:n:o:u:h" opt; do
+while getopts ":c:d:m:erzg:n:o:u:h" opt; do
   case $opt in
     c) CONFIG_FILE="$OPTARG" ;;
     d) DATASET="$OPTARG" ;;
     m) MODEL="$OPTARG" ;;
     e) EVAL="-e" ;;
     r) RERANK="-r" ;;
+    z) ZIPF="-z" ;;
     g) GPUS="$OPTARG" ;;
     n) NODE="$OPTARG" ;;
     o) OVERSAMPLE="$OPTARG" ;;
@@ -63,12 +64,13 @@ echo "  CPUs:           $CPUS"
 (( $(echo "$UNDERSAMPLE != 0.0" | bc) )) && echo "  Undersample:    $UNDERSAMPLE"
 [ -n "$EVAL" ] && echo "  Evaluation:     Enabled"
 [ -n "$RERANK" ] && echo "  MMR Rerank:     Enabled"
+[ -n "$ZIPF" ] && echo "  ZIPS Penalty:   Enabled"
 
 sbatch_command="sbatch --job-name=\"$JOB_NAME\" --output=\"$OUTPUT_FILE\" --gres=gpu:$GPUS --mem=$MEMORY --cpus-per-task=$CPUS"
 
 [ -n "$NODE" ] && sbatch_command+=" --nodelist=\"$NODE\""
 if [ -n "$DATASET" ] && [ -n "$MODEL" ]; then
-  sbatch_command="$sbatch_command --wrap=\"singularity exec --nv recbole.sif bash run_model.sh -d $DATASET -m $MODEL -s $NAME -o $OVERSAMPLE -u $UNDERSAMPLE $EVAL $RERANK\""
+  sbatch_command="$sbatch_command --wrap=\"singularity exec --nv recbole.sif bash run_model.sh -d $DATASET -m $MODEL -s $NAME -o $OVERSAMPLE -u $UNDERSAMPLE $EVAL $RERANK $ZIPF\""
 else
   sbatch_command="$sbatch_command --wrap=\"singularity exec --nv recbole.sif bash run_model.sh -c $CONFIG_FILE\""
 fi
