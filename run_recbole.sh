@@ -4,7 +4,7 @@ GPUS=1
 OVERSAMPLE="0.0"
 UNDERSAMPLE="0.0"
 
-while getopts ":c:d:m:erzg:n:o:u:h" opt; do
+while getopts ":c:d:m:erzg:s:n:o:u:h" opt; do
   case $opt in
     c) CONFIG_FILE="$OPTARG" ;;
     d) DATASET="$OPTARG" ;;
@@ -13,11 +13,12 @@ while getopts ":c:d:m:erzg:n:o:u:h" opt; do
     r) RERANK="-r" ;;
     z) ZIPF="-z" ;;
     g) GPUS="$OPTARG" ;;
+    s) NAME="$OPTARG" ;;
     n) NODE="$OPTARG" ;;
     o) OVERSAMPLE="$OPTARG" ;;
     u) UNDERSAMPLE="$OPTARG" ;;
     h)
-      echo "Usage: $0 -d <DATASET> -m <MODEL> [-g <GPUS=4>] [-n <NODE>] [-o <OVERSAMPLE=0>] [-u <UNDERSAMPLE=0>] [-e]"
+      echo "Usage: $0 -d <DATASET> -m <MODEL> [-g <GPUS=1>] [-n <NODE>] [-o <OVERSAMPLE=0.0>] [-u <UNDERSAMPLE=0.0>] [-e] [-r] [-z]"
       exit 0
       ;;
     \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
@@ -25,11 +26,10 @@ while getopts ":c:d:m:erzg:n:o:u:h" opt; do
   esac
 done
 
-MEMORY="$((GPUS * 32))G"
+MEMORY="$((GPUS * 24))G"
 if [ -n "$DATASET" ] && [ -n "$MODEL" ]; then
   JOB_NAME="Rec-${MODEL}-${DATASET}"
   OUTPUT_FILE="${DATASET}-${MODEL}"
-  [ -n "$MODEL" ] && NAME="${MODEL}"
 else
   JOB_NAME="Rec-Multi${CONFIG_FILE}"
   OUTPUT_FILE="Multi${CONFIG_FILE}"
@@ -37,13 +37,28 @@ fi
 
 CPUS="$((GPUS * 10))"
 if (( $(echo "$OVERSAMPLE != 0.0" | bc) )); then
-  NAME="${NAME}_O_${OVERSAMPLE}"
+  JOB_NAME="${JOB_NAME}_O_${OVERSAMPLE}"
   OUTPUT_FILE="${OUTPUT_FILE}_O_${OVERSAMPLE}"
 fi
 if (( $(echo "$UNDERSAMPLE != 0.0" | bc) )); then
-  NAME="${NAME}_U_${UNDERSAMPLE}"
+  JOB_NAME="${JOB_NAME}_U_${UNDERSAMPLE}"
   OUTPUT_FILE="${OUTPUT_FILE}_U_${UNDERSAMPLE}"
 fi
+
+if [ -n "$NAME" ]; then
+  JOB_NAME="${NAME}"
+fi
+
+if [ -n "$ZIPF" ]; then
+  JOB_NAME="${JOB_NAME}_Zipf"
+  OUTPUT_FILE="${OUTPUT_FILE}_Zipf"
+fi
+
+if [ -n "$RERANK" ]; then
+  JOB_NAME="${JOB_NAME}_MMR"
+  OUTPUT_FILE="${OUTPUT_FILE}_MMR"
+fi
+
 if [ -n "$EVAL" ]; then
   JOB_NAME="${JOB_NAME}_Eval"
   OUTPUT_FILE="${OUTPUT_FILE}_Eval"
@@ -54,6 +69,7 @@ echo "Submitting job with the following parameters:"
 [ -n "$DATASET" ]     && echo "  Dataset:        $DATASET"
 [ -n "$MODEL" ]       && echo "  Model:          $MODEL"
 [ -n "$CONFIG_FILE" ] && echo "  Config File:    $CONFIG_FILE"
+[ -n "$NAME" ] && echo "  Name:           $NAME"
 echo "  GPUs:           $GPUS"
 echo "  Memory:         $MEMORY"
 echo "  Job Name:       $JOB_NAME"
@@ -67,6 +83,10 @@ echo "  CPUs:           $CPUS"
 [ -n "$ZIPF" ] && echo "  ZIPS Penalty:   Enabled"
 
 sbatch_command="sbatch --job-name=\"$JOB_NAME\" --output=\"$OUTPUT_FILE\" --gres=gpu:$GPUS --mem=$MEMORY --cpus-per-task=$CPUS"
+
+if [ -z "${NAME+x}" ] && [ -n "${JOB_NAME+x}" ]; then
+  NAME="${JOB_NAME}"
+fi
 
 [ -n "$NODE" ] && sbatch_command+=" --nodelist=\"$NODE\""
 if [ -n "$DATASET" ] && [ -n "$MODEL" ]; then
