@@ -231,7 +231,6 @@ class RecboleRunner:
 
         is_not_random = config["model"] != "Random"
 
-        self.logger.info(f"Adjusted config: \n{config}")
         trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
         if is_not_random:
             trainer.resume_checkpoint(model_path)
