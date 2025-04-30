@@ -40,9 +40,8 @@ class BPRLoss(nn.Module):
 
 class EntropyLoss(nn.Module):
 
-    def __init__(self, base_loss, dataset, item_id, alpha=1):
+    def __init__(self, dataset, item_id, alpha=1):
         super(EntropyLoss, self).__init__()
-        self.base_loss = base_loss(reduction='none')
         items_count = self._build_item_popularity(dataset, item_id)
         boost = 1 - (torch.log1p(items_count) + 1) / (torch.log1p(torch.max(items_count)) + 1)
         boost = boost ** alpha
@@ -62,8 +61,7 @@ class EntropyLoss(nn.Module):
 
         return item_counts
 
-    def forward(self, predict, targets, items):
-        loss = self.base_loss(predict, targets)
+    def forward(self, loss, items):
         boost = self.items_boost[items]
         loss = loss * boost
         return torch.sum(loss) / torch.sum(boost)
