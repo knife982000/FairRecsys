@@ -1,4 +1,4 @@
-from model import BPREntropy
+from model import BPREntropy, NGCFEntropy, LightGCNEntropy
 
 ##################################
 ######### Configurations #########
@@ -6,7 +6,7 @@ from model import BPREntropy
 model_folder = "./saved_models/"
 metrics_results_folder = "./metrics_results/"
 
-methods = {"BPR": None, "LightGCN": None, "NGCF": None,"Random": None, "BPREntropy": BPREntropy}
+methods = {"BPR": None, "LightGCN": None, "NGCF": None,"Random": None, "BPREntropy": BPREntropy, "NGCFEntropy": NGCFEntropy, "LightGCNEntropy": LightGCNEntropy}
 
 datasets = ["ml-100k", "ml-1m", "ml-20m", "gowalla-merged", "steam-merged"]
 config_dictionary = {
