@@ -48,7 +48,8 @@ if [ -n "$CONFIG_FILE" ]; then
     python_command+=" -o $OVERSAMPLE"
     python_command+=" -u $UNDERSAMPLE"
     [ "$EVAL" = "True" ] && python_command+=" -e"
-    [ "$EVAL" = "True" ] && python_command+=" -mmr"
+    [ "$RERANK" = "True" ] && python_command+=" -mmr"
+    [ "$ZIPF" = "True" ] && python_command+=" -z"
     eval "$python_command"
 
     # Remove the executed line from the file
