@@ -26,5 +26,5 @@ class BPREntropy(BPR):
         pos_item_score, neg_item_score = torch.mul(user_e, pos_e).sum(dim=1), torch.mul(
             user_e, neg_e
         ).sum(dim=1)
-        loss = self.loss(pos_item_score, neg_item_score, pos_item)
+        loss = self.loss(pos_item_score, neg_item_score)
         return loss
