@@ -25,14 +25,18 @@ def get_alpha(config):
 
 def zipf_penalty_singular(config, score, item):
     """Apply Zipf's penalty to the given scores."""
+    score = score.clone().detach()
+
     item_popularity = build_item_popularity(config)
 
     zipf_penalty = get_alpha(config) * torch.log1p(item_popularity[item] + 1)
     return score - zipf_penalty
 
 
-def zipf_penalty_batch(config, score: torch.Tensor):
+def zipf_penalty_batch(config, scores: torch.Tensor):
+    scores = scores.clone().detach()
+
     item_popularity = build_item_popularity(config)
 
     zipf_penalty = get_alpha(config) * torch.log1p(item_popularity)
-    return score - zipf_penalty.unsqueeze(0)
+    return scores - zipf_penalty.unsqueeze(0)
