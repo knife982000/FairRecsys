@@ -903,7 +903,12 @@ class RecommendedGraph(AbstractMetric):
         super().__init__(config)
         self.topk = config["topk"]
         self.save_directory = f"./metrics_results/{config["dataset"]}/"
-        self.save_name = f"{config["save_model_as"]}-plot.json"
+        plot_name = config["save_model_as"]
+        if config["apply_zipf"]:
+            plot_name += "Zipf"
+        if config["apply_mmr"]:
+            plot_name += "MMR"
+        self.save_name = f"{plot_name}-plot.json"
 
     def used_info(self, dataobject):
         rec_items = dataobject.get("rec.items")
