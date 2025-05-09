@@ -16,6 +16,8 @@ from recbole.evaluator.register import Register
 import torch
 import copy
 
+from RecboleRunner.zipf_penalty import zipf_penalty_batch
+
 
 class DataStruct(object):
     def __init__(self):

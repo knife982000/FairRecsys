@@ -12,6 +12,7 @@ from RecBole.recbole.config.configurator import Config
 from RecBole.recbole.data.utils import create_dataset, data_preparation
 from RecBole.recbole.utils import get_trainer, set_color, init_logger
 from RecBole.recbole.utils.utils import init_seed, get_model, get_environment
+from RecboleRunner.optimize_entropy import find_optimal_alpha
 
 from RecboleRunner.sampler import InteractionSampler
 from config import model_folder, metrics_results_folder, methods
@@ -80,7 +81,8 @@ class RecboleRunner:
         config_dict = config_dict if config_dict is not None else self.config_dict
         config_file_list = config_file_list if config_file_list is not None else self.config_file_list
         config = Config(model=model, dataset=self.dataset_name, config_dict=config_dict, config_file_list=config_file_list)
-        config["save_model_as"] = self.save_model_as if self.save_model_as is not None else f"{self.model_name}"
+        self.save_model_as = self.save_model_as if self.save_model_as is not None else f"{self.model_name}"
+        config["save_model_as"] = self.save_model_as
         return config
 
     def run_recbole(self, rank: int = None, queue: mp.SimpleQueue = None, model_path: str = None) -> dict[str, Any]:
@@ -229,7 +231,6 @@ class RecboleRunner:
 
         is_not_random = config["model"] != "Random"
 
-        self.logger.info(f"Adjusted config: \n{config}")
         trainer = get_trainer(config["MODEL_TYPE"], config["model"])(config, model)
         if is_not_random:
             trainer.resume_checkpoint(model_path)
@@ -259,10 +260,12 @@ class RecboleRunner:
         else:
             all_results = {}
 
-        if self.dataset_name not in all_results:
-            all_results[self.dataset_name] = {}
+        # Ensure the dataset entry exists
+        all_results.setdefault(self.dataset_name, {})
 
         index = self.model_name if self.save_model_as is None else self.save_model_as
+        if self.config["apply_zipf"]:
+            index += "Zipf"
 
         if self.config["apply_mmr"]:
             index += "MMR"
@@ -278,7 +281,7 @@ class RecboleRunner:
         with open(path, "w") as file:
             json.dump(all_results, file)
 
-    def grid_search_zipf_alpha(self, alpha_values: List[float]) -> Dict[str, Any]:
+    def grid_search_zipf_alpha(self, alpha_values: List[float]) -> dict[float, dict[str, Any]]:
         """
         Perform grid search to find the optimal zipf_alpha.
         :param alpha_values: ``List[float]`` List of zipf_alpha values to evaluate.
@@ -298,6 +301,14 @@ class RecboleRunner:
         # Restore original zipf_alpha
         self.config_dict["zipf_alpha"] = original_alpha
         return results
+
+    def optimize_entropy_alpha(self):
+        best_alpha, best_result = find_optimal_alpha(self, 0.0, 1.0, 0.1)
+
+        step = 0.01
+        best_alpha, best_result = find_optimal_alpha(self, best_alpha - (5 * step), best_alpha + (5 * step), step)
+
+        return best_alpha, best_result
 
 
 def find_available_port(start: int, end: int) -> int:

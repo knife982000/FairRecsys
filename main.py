@@ -14,7 +14,9 @@ if __name__ == "__main__":
     parser.add_argument("-u", "--undersample", type=float, help=f"Ratio for undersampling", default=0.0)
     parser.add_argument("-s", "--save_model_as", type=str, help=f"Name to save model as", default=None)
     parser.add_argument("-a", "--alpha_values", type=str, help="Comma-separated list of zipf_alpha values for grid search")
+    parser.add_argument("-z", "--apply_zipf", action="store_true", help="Apply Zipf's penalty to the model")
     parser.add_argument("-mmr", "--mmr", action="store_true", help="Use MMR for reranking")
+    parser.add_argument("-fe", "--find_entropy", action="store_true", help=f"Find the optimal entropy alpha value")
 
     args = parser.parse_args()
 
@@ -40,6 +42,9 @@ if __name__ == "__main__":
     if args.evaluate:
         config_file = eval_config_file
 
+    if args.apply_zipf:
+        config_dictionary["apply_zipf"] = True
+
     if args.dataset == "steam-merged":
         config_file.append("config_steam.yaml")
 
@@ -58,6 +63,10 @@ if __name__ == "__main__":
         alpha_values = [float(a) for a in args.alpha_values.split(",")]
         results = runner.grid_search_zipf_alpha(alpha_values)
         print("Grid search results:", results)
+    elif args.find_entropy:
+        best_alpha, results = runner.optimize_entropy_alpha()
+        runner.save_model_as += f"_optimized_alpha"
+        results["best_alpha"] = best_alpha
     else:
         results = runner.run_and_evaluate_model()
     runner.save_metrics_results(results)
