@@ -748,11 +748,7 @@ class TailPercentage(AbstractMetric):
             cut = max(int(len(count_items) * self.tail), 1)
             count_items = count_items[:cut]
             tail_items = [item for item, cnt in count_items]
-        value = np.zeros_like(item_matrix)
-        for i in range(item_matrix.shape[0]):
-            row = item_matrix[i, :]
-            for j in range(row.shape[0]):
-                value[i][j] = 1 if row[j] in tail_items else 0
+        value = np.isin(item_matrix, tail_items).astype(int)
         return value
 
     def calculate_metric(self, dataobject):
