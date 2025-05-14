@@ -1,5 +1,12 @@
 #!/bin/bash
 
+echo "Getting the latest version of RecBole from repository..."
+if [ -d "./P6" ]; then
+  rm -rdf ./P6
+fi
+git clone https://github.com/AAU-Dat6-2025/P6.git
+pip install -e ./P6/RecBole --verbose
+
 while getopts ":c:d:m:s:o:uerzqh" opt; do
   case $opt in
     c) CONFIG_FILE="$OPTARG" ;;
