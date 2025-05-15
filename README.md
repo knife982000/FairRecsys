@@ -13,7 +13,7 @@ python3 main.py -d <dataset> -m <model>
 ```
 ```bash
 # Evaluation
-python3 main.py -d <dataset> -m <model> -e True
+python3 main.py -d <dataset> -m <model> -e
 ```
 
 ## Environment
