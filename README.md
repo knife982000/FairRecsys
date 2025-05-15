@@ -47,7 +47,7 @@ mkdir -p $TMPDIR $SINGULARITY_TMPDIR $SINGULARITY_CACHEDIR $PIP_TMPDIR $PIP_CACH
 ```
 4. Build the Singularity container:
 ```bash
-singularity build --fakeroot recbole.sif recbole.def
+singularity build --fakeroot recbole.sif utils/recbole.def
 ```
 5. Remember to exit the session when you are done:
 ```bash
@@ -56,9 +56,9 @@ exit
 
 ## Running models
 ```bash
-sbatch run_model.sh <dataset> <model>
+sbatch run_model.sh -d <dataset> -m <model>
 ```
 For example:
 ```bash
-bash run_model.sh ml-1m BPR
+bash run_model.sh -d ml-1m -m BPR
 ```
