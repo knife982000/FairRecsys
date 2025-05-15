@@ -66,7 +66,7 @@ bash run_recbole -h
 ```
 Basic setup:
 ```bash
-sbatch run_recbole.sh -d <dataset> -m <model>
+bash run_recbole.sh -d <dataset> -m <model>
 ```
 For example:
 ```bash
