@@ -24,7 +24,7 @@ bash install_local.sh
 ```
 2. Download datasets:
 ```bash
-bash dataset_download.sh
+cd dataset && bash dataset_download.sh && cd ..
 ```
 
 ### Using Slurm and Singularity
@@ -54,11 +54,21 @@ singularity build --fakeroot recbole.sif utils/recbole.def
 exit
 ```
 
-## Running models
+6. Download datasets:
 ```bash
-sbatch run_model.sh -d <dataset> -m <model>
+cd dataset && bash dataset_download.sh && cd ..
+```
+
+## Running models using Slurm
+Multiple flags can be set using run_recbole, these can be see using 
+```bash
+bash run_recbole -h
+```
+Basic setup:
+```bash
+sbatch run_recbole.sh -d <dataset> -m <model>
 ```
 For example:
 ```bash
-bash run_model.sh -d ml-1m -m BPR
+bash run_recbole.sh -d ml-1m -m BPR
 ```
