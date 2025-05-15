@@ -64,11 +64,16 @@ Multiple flags can be set using run_recbole, these can be see using
 ```bash
 bash run_recbole -h
 ```
-Basic setup:
+### Basic setup:
 ```bash
-bash run_recbole.sh -d <dataset> -m <model>
+bash run_recbole.sh -d <dataset> -m <model> [-n <node>] [-g <#gpus>]
 ```
 For example:
 ```bash
 bash run_recbole.sh -d ml-1m -m BPR
+```
+
+### Using a queue file:
+```bash
+bash run_recbole.sh -c <file path> [-n <node>] [-g <#gpus>]
 ```
