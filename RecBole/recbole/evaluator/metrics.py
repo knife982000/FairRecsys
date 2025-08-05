@@ -973,3 +973,52 @@ class Novelty(AbstractMetric):
                 novelty_scores[i, j] = -np.log2(p_i) / nov_max  # Normalize novelty
 
         return novelty_scores.mean()
+
+
+class JensenShannonDivergence(AbstractMetric):
+    r"""Jensen-Shannon Divergence (JSD) measures the similarity between two probability distributions.
+    It is symmetric and always has a finite value.
+
+    .. math::
+        JSD(P || Q) = 0.5 * (KL(P || M) + KL(Q || M)), \quad M = 0.5 * (P + Q)
+    """
+
+    metric_type = EvaluatorType.RANKING
+    metric_need = ["rec.items", "data.num_items"]
+
+    def __init__(self, config):
+        super().__init__(config)
+        self.topk = config["topk"]
+
+    def used_info(self, dataobject):
+        item_matrix = dataobject.get("rec.items")
+        num_items = dataobject.get("data.num_items")
+        return item_matrix.numpy(), num_items
+
+    def calculate_metric(self, dataobject):
+        item_matrix, num_items = self.used_info(dataobject)
+        metric_dict = {}
+        for k in self.topk:
+            key = f"jsd@{k}"
+            jsd_value = self.get_jsd(item_matrix[:, :k], num_items)
+            metric_dict[key] = round(jsd_value, self.decimal_place)
+        return metric_dict
+
+    def get_jsd(self, item_matrix, num_items):
+        # Empirical distribution of recommended items
+        rec_counts = np.bincount(item_matrix.flatten(), minlength=num_items)
+        P = rec_counts / rec_counts.sum()
+
+        # Reference distribution: uniform
+        Q = np.ones(num_items) / num_items
+
+        # Avoid log(0) by adding a small epsilon
+        eps = 1e-12
+        P = np.clip(P, eps, 1)
+        Q = np.clip(Q, eps, 1)
+        M = 0.5 * (P + Q)
+
+        kl_pm = np.sum(P * np.log2(P / M))
+        kl_qm = np.sum(Q * np.log2(Q / M))
+        jsd = 0.5 * (kl_pm + kl_qm)
+        return jsd
