@@ -43,7 +43,7 @@ def generate_report(df, output_folder: str, alternative: str = 'auto', confidenc
             std_dev = np.std(group_data, ddof=1)
             count = len(group_data)
             ds = DescrStatsW(df[df['group'] == i]['popularity_score'].values)
-            print(f"Mean: {mean:.4f}, Std Dev: {std_dev:.4f}, Count: {count}", file=f)
+            print(f"Mean: {mean}, Std Dev: {std_dev}, Count: {count}", file=f)
             print(f"{confidence*100:.2f}% Confidence interval mean: {ds.tconfint_mean(alpha=1-confidence)}", file=f)
         print("\n===== Group Interactions Report =====", file=f)
         for i in range(df['group'].max() + 1):
@@ -53,7 +53,7 @@ def generate_report(df, output_folder: str, alternative: str = 'auto', confidenc
             std_dev = np.std(group_data, ddof=1)
             count = len(group_data)
             ds = DescrStatsW(df[df['group'] == i]['interactions'].values)
-            print(f"Mean: {mean:.4f}, Std Dev: {std_dev:.4f}, Count: {count}", file=f)
+            print(f"Mean: {mean}, Std Dev: {std_dev}, Count: {count}", file=f)
             print(f"{confidence*100:.2f}% Confidence interval mean: {ds.tconfint_mean(alpha=1-confidence)}", file=f)
         print("\n===== Welch's t-test Results: difference interactions between groups =====", file=f)
         for i in range(df['group'].max() + 1):
