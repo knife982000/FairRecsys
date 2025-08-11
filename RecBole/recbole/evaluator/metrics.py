@@ -944,7 +944,7 @@ class RecommendedGraph(AbstractMetric):
 
 class Novelty(AbstractMetric):
     metric_type = EvaluatorType.RANKING
-    metric_need = ["rec.items"]
+    metric_need = ["rec.items", "data.count_items", "data.num_users"]
 
     def __init__(self, config):
         super().__init__(config)
@@ -952,9 +952,8 @@ class Novelty(AbstractMetric):
     def used_info(self, dataobject):
         """Get the matrix of recommendation items and the number of users per item"""
         item_matrix = dataobject.get("rec.items")
-        item, interactions = item_matrix.flatten().unique(return_counts=True)
-        item_interactions_dict = {item.item(): interactions.item() for item, interactions in zip(item, interactions)}
-        return item_matrix.numpy(), item_interactions_dict, item_matrix.shape[0]
+        item_interactions_dict = dict(dataobject.get("data.count_items"))
+        return item_matrix.numpy(), item_interactions_dict, dataobject.get("data.num_users")
 
     def calculate_metric(self, dataobject):
         item_matrix, item_count, user_count = self.used_info(dataobject)
@@ -962,14 +961,20 @@ class Novelty(AbstractMetric):
         return {"novelty": round(result, self.decimal_place)}
 
     def novelty_score(self, item_matrix: ndarray, item_count: Dict, user_count: int):
+        # Max value of the metric is log2(user_count)
+        # The formula is:
+        # novelty = -1 / (users * recs) sum_per_user sum_per_rec log2(p_i)
+        # Notice users != user_count in a restricted environment.
+        # Matematically, it is equivalent to:
+        # novelty = log2(user_count) - sum_per_user sum_per_rec log2(count_i) / (user_count * recs))
+        # novelty = log2(user_count) - mean_user_rec log2(count_i)
         novelty_scores = np.zeros_like(item_matrix, dtype=np.float64)
         nov_max = np.log2(user_count)
 
         for i in range(item_matrix.shape[0]):
             for j in range(item_matrix.shape[1]):
                 item = item_matrix[i, j]
-                num_users_interacted = item_count[item]
-                p_i = num_users_interacted / user_count  # Probability of interaction
-                novelty_scores[i, j] = -np.log2(p_i) / nov_max  # Normalize novelty
-
-        return novelty_scores.mean()
+                novelty_scores[i, j] = item_count[item]
+        
+        novelty_scores = nov_max - np.log2(novelty_scores).mean()
+        return novelty_scores / nov_max  # Normalize the score to [0, 1]
