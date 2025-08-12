@@ -597,7 +597,7 @@ class ShannonEntropy(AbstractMetric):
     """
 
     metric_type = EvaluatorType.RANKING
-    metric_need = ["rec.items"]
+    metric_need = ["rec.items", "data.num_items"]
 
     def __init__(self, config):
         super().__init__(config)
@@ -606,15 +606,22 @@ class ShannonEntropy(AbstractMetric):
     def used_info(self, dataobject):
         """Get the matrix of recommendation items."""
         item_matrix = dataobject.get("rec.items")
-        return item_matrix.numpy()
+        num_items = dataobject.get("data.num_items")
+        return item_matrix.numpy(), num_items
 
     def calculate_metric(self, dataobject):
-        item_matrix = self.used_info(dataobject)
+        item_matrix, num_items = self.used_info(dataobject)
+        max_entropy = np.log(num_items)
         metric_dict = {}
         for k in self.topk:
             key = "{}@{}".format("shannonentropy", k)
+            entropy = self.get_entropy(item_matrix[:, :k])
             metric_dict[key] = round(
-                self.get_entropy(item_matrix[:, :k]), self.decimal_place
+                entropy, self.decimal_place
+            )
+            key = "{}@{}".format("normalizedshannonentropy", k)
+            metric_dict[key] = round(
+                entropy / max_entropy, self.decimal_place
             )
         return metric_dict
 
