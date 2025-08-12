@@ -17,6 +17,7 @@ if __name__ == "__main__":
     parser.add_argument("-z", "--apply_zipf", action="store_true", help="Apply Zipf's penalty to the model")
     parser.add_argument("-mmr", "--mmr", action="store_true", help="Use MMR for reranking")
     parser.add_argument("-fe", "--find_entropy", action="store_true", help=f"Find the optimal entropy alpha value")
+    parser.add_argument("-ug", "--user_group", type=str, help="Path to user-group CSV file")
 
     args = parser.parse_args()
 
@@ -47,6 +48,9 @@ if __name__ == "__main__":
 
     if args.dataset == "steam-merged":
         config_file.append("config_steam.yaml")
+
+    if args.user_group:
+        config_dictionary["user_group"] = args.user_group
 
     # Fixing compatibility issues
     import numpy as np

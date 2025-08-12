@@ -17,7 +17,7 @@ import torch
 import copy
 
 from RecboleRunner.zipf_penalty import zipf_penalty_batch
-
+import pandas as pd
 
 class DataStruct(object):
     def __init__(self):
@@ -43,6 +43,12 @@ class DataStruct(object):
     def set(self, name: str, value):
         self._data_dict[name] = value
 
+    def keys(self):
+        return self._data_dict.keys()
+    
+    def items(self):
+        return self._data_dict.items()
+    
     def update_tensor(self, name: str, value: torch.Tensor):
         if name not in self._data_dict:
             self._data_dict[name] = value.clone().detach()
@@ -94,6 +100,12 @@ class Collector(object):
             self.data_struct.set("data.count_items", train_data.dataset.item_counter)
         if self.register.need("data.count_users"):
             self.data_struct.set("data.count_users", train_data.dataset.user_counter)
+        if 'user_group' in self.config:
+            user_groups = self.config['user_group']
+            user_groups = pd.read_csv(user_groups)[[train_data.dataset.uid_field, 'group']]
+            user_groups = user_groups.set_index(train_data.dataset.uid_field)['group'].to_dict()
+            self.user_groups = user_groups
+            
 
     def _average_rank(self, scores):
         """Get the ranking of an ordered tensor, and take the average of the ranking for positions with equal values.
@@ -194,6 +206,11 @@ class Collector(object):
             self.data_struct.update_tensor(
                 "data.label", interaction[self.label_field].to(self.device)
             )
+        if "user_group" in self.config:
+            user_ids = interaction[self.config["USER_ID_FIELD"]].cpu().numpy()
+            group_list = [self.user_groups.get(uid, -1) for uid in user_ids]
+            group_tensor = torch.tensor(group_list, device=self.device)
+            self.data_struct.update_tensor("rec.user_group", group_tensor)
 
     def model_collect(self, model: torch.nn.Module):
         """Collect the evaluation resource from model.

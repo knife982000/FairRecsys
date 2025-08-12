@@ -11,7 +11,7 @@ recbole.evaluator.evaluator
 from recbole.evaluator.register import metrics_dict
 from recbole.evaluator.collector import DataStruct
 from collections import OrderedDict
-
+import numpy as np
 
 class Evaluator(object):
     """Evaluator is used to check parameter correctness, and summarize the results of all metrics."""
@@ -38,4 +38,21 @@ class Evaluator(object):
         for metric in self.metrics:
             metric_val = self.metric_class[metric].calculate_metric(dataobject)
             result_dict.update(metric_val)
+
+        if "rec.user_group" in dataobject._data_dict:
+            user_group = dataobject["rec.user_group"]
+            user_group = user_group.cpu().numpy()
+            groups = np.unique(user_group)
+            groups.sort()
+            for g in groups:
+                g_dataobject = DataStruct()
+                for key, value in dataobject.items():
+                    if key.startswith("rec."):
+                        g_dataobject.set(key, value[user_group == g])
+                    else:
+                        g_dataobject.set(key, value)
+                for metric in self.metrics:
+                    metric_val = self.metric_class[metric].calculate_metric(g_dataobject)
+                    metric_val = {f"{g}:{k}": v for k, v in metric_val.items()}
+                    result_dict.update(metric_val)
         return result_dict
