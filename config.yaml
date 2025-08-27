@@ -22,7 +22,7 @@ eval_step: 5
 eval_batch_size: 4096000
 eval_args:
   group_by: user
-  order: RO
+  order: TO
   split: {RS: [0.8, 0.1, 0.1]}
   mode: uni100
 metric_decimal_place: 4
