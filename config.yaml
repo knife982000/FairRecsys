@@ -6,6 +6,9 @@ workers: 2
 # Model Settings
 embedding_size: 64
 
+# Data Settings
+load_col:                       # (dict) The suffix of atomic files: (list) field names to be loaded.
+    inter: [user_id, item_id, rating, timestamp]
 # Training Settings
 epochs: 300
 train_batch_size: 8192
