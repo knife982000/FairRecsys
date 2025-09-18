@@ -6,3 +6,5 @@
 /metrics_results/*/
 /plots/
 /saved_models/
+__pycache__/
+*.pyc
