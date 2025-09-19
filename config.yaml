@@ -22,7 +22,7 @@ valid_metric: MRR@10
 eval_step: 5
 
 # Evaluation Settings
-eval_batch_size: 4096000
+eval_batch_size: 40960
 eval_args:
   group_by: user
   order: TO
