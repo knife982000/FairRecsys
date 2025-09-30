@@ -981,7 +981,7 @@ class Novelty(AbstractMetric):
         for i in range(item_matrix.shape[0]):
             for j in range(item_matrix.shape[1]):
                 item = item_matrix[i, j]
-                novelty_scores[i, j] = item_count[item]
+                novelty_scores[i, j] = item_count[item] if item in item_count else 1.0 # avoid log(0)
         
         novelty_scores = nov_max - np.log2(novelty_scores).mean()
         return novelty_scores / nov_max  # Normalize the score to [0, 1]

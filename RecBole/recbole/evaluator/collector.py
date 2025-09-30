@@ -18,6 +18,7 @@ import copy
 
 from RecboleRunner.zipf_penalty import zipf_penalty_batch
 import pandas as pd
+import numpy as np
 
 class DataStruct(object):
     def __init__(self):
@@ -208,9 +209,16 @@ class Collector(object):
             )
         if "user_group" in self.config:
             user_ids = interaction[self.config["USER_ID_FIELD"]].cpu().numpy()
+            u_ids = set()
+            uniq = []
+            for uid in user_ids:
+                if uid not in u_ids:
+                    u_ids.add(uid)
+                    uniq.append(uid)
+            user_ids = np.array(uniq)
             group_list = [self.user_groups.get(uid, -1) for uid in user_ids]
             group_tensor = torch.tensor(group_list, device=self.device)
-            self.data_struct.update_tensor("rec.user_group", group_tensor)
+            self.data_struct.set("rec.user_group", group_tensor)
 
     def model_collect(self, model: torch.nn.Module):
         """Collect the evaluation resource from model.
