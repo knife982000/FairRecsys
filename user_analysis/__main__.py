@@ -128,8 +128,8 @@ def main():
                            help='''Method to aggregate user popularity scores.
                            Options: "median", "mean" (default: "median").
                            ''')
-    argparser.add_argument('-g', '--groups', type=int, required=False, default=4, 
-                           help='Number of groups to divide users into based on preferences (default: 4)')
+    argparser.add_argument('-g', '--groups', type=str, required=False, default='4', 
+                           help='Number of groups to divide users into based on preferences or list of limits, e.g. [0, 0.5, 1] (default: 4)')
     argparser.add_argument('-o', '--output', type=str, required=False, default='results', 
                            help='Output folder for analysis results (default: "results")')
     argparser.add_argument('-f', '--config_file', type=str, required=False, default=None, 
@@ -152,7 +152,18 @@ def main():
     print("Converting dataset to DataFrame...")
     df = dataset_to_df(train_dataset)
     print("Grouping users by preferences...")
-    df = group_users_by_preferences(df, groups=args.groups, method=args.user_agregation)
+    groups = eval(args.groups) if args.groups.startswith('[') else int(args.groups)
+    if isinstance(groups, list):
+        valid = groups[0] == 0 and groups[-1] == 1
+        for i in range(1, len(groups)):
+            if not valid:
+                break
+            valid = groups[i] > groups[i-1] and groups[i] <= 1
+        if not valid:
+            raise ValueError("Invalid groups limits. Must be a list of increasing values between 0 and 1, e.g. [0, 0.5, 1]")
+    elif isinstance(groups, int) and groups < 1:
+        raise ValueError("Invalid number of groups. Must be an integer greater than 0.")
+    df = group_users_by_preferences(df, groups=groups, method=args.user_agregation)
     print("Analyzing user preferences...")
     df = analyze_user(df)
 

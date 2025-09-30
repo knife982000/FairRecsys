@@ -3,9 +3,8 @@ import RecboleRunner #Needed for circular imports
 from recbole.data.dataset import Dataset
 from recbole.config import Config
 from recbole.utils import init_seed
-import seaborn as sns
 import pandas as pd
-from typing import Tuple
+from typing import Tuple, Union, List
 
 user_field = 'user_id'
 item_field = 'item_id'
@@ -57,14 +56,14 @@ def dataset_to_df(dataset: Dataset):
     return df
 
 
-def group_users_by_preferences(df: pd.DataFrame, groups: int = 4, 
+def group_users_by_preferences(df: pd.DataFrame, groups: Union[int,List[str]] = 4, 
                                method: str = 'median', return_popularity=False) -> pd.DataFrame:
     """
     Groups users based on the average popularity of items they interact with.
 
     Args:
         df (pd.DataFrame): DataFrame with user-item interactions.
-        groups (int, optional): Number of user groups to create. Defaults to 4.
+        groups (Union(int, list(str), optional): Number of user groups to create or a list of bin limits, e.g [0, 0.5, 1]. Defaults to 4.
         method (str): Method to calculate user popularity score ('median' or 'mean').
         return_popularity (bool, optional): Whether to return item popularity as well. Defaults to False.
 
