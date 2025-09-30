@@ -124,9 +124,10 @@ def main():
     argparser.add_argument('-c', '--confidence', type=float, required=False, default=0.99, 
                            help='De ault confidence level for statistical tests (default: 0.99)')
     argparser.add_argument('-u', '--user_agregation', type=str, required=False, default='median',
-                           choices=["mediam", "mean"], 
+                           choices=["mediam", "mean", "popularity"], 
                            help='''Method to aggregate user popularity scores.
-                           Options: "median", "mean" (default: "median").
+                           Options: "median", "mean", "popularity" (default: "median").
+                           "popularity" is defined in: https://arxiv.org/abs/1907.13286
                            ''')
     argparser.add_argument('-g', '--groups', type=str, required=False, default='4', 
                            help='Number of groups to divide users into based on preferences or list of limits, e.g. [0, 0.5, 1] (default: 4)')
