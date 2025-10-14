@@ -6,6 +6,9 @@ workers: 2
 # Model Settings
 embedding_size: 64
 
+# Data Settings
+load_col:                       # (dict) The suffix of atomic files: (list) field names to be loaded.
+    inter: [user_id, item_id, rating, timestamp]
 # Training Settings
 epochs: 300
 train_batch_size: 8192
@@ -19,10 +22,10 @@ valid_metric: MRR@10
 eval_step: 5
 
 # Evaluation Settings
-eval_batch_size: 4096000
+eval_batch_size: 40960
 eval_args:
   group_by: user
-  order: RO
+  order: TO
   split: {RS: [0.8, 0.1, 0.1]}
   mode: uni100
 metric_decimal_place: 4

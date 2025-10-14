@@ -6,8 +6,13 @@
 /metrics_results/*/
 /plots/
 /saved_models/
+<<<<<<< HEAD
 /results/**
 
 __pycache__/
 .vscode/
 .ipynb_checkpoints/
+=======
+__pycache__/
+*.pyc
+>>>>>>> Transformer
