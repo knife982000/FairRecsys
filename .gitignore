@@ -6,3 +6,8 @@
 /metrics_results/*/
 /plots/
 /saved_models/
+/results/**
+
+__pycache__/
+.vscode/
+.ipynb_checkpoints/
