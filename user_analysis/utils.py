@@ -96,7 +96,15 @@ def group_users_by_preferences(df: pd.DataFrame, groups: Union[int,List[str]] = 
     else:
         raise ValueError("Invalid method. Choose 'median' or 'mean'.")
     #Compute quartiles
-    user_groups = pd.qcut(user_pop_score.values, groups, labels=False)
+    try:
+        user_groups = pd.qcut(user_pop_score.values, groups, labels=False)
+    except ValueError as e:
+        #If qcut fails, use cut instead
+        if isinstance(groups, list) and len(groups) >= 4:
+            print("Warning: qcut failed, using cut instead with provided bin limits.")
+            user_groups = [0 if score == 0.0 else 1 if score < 1.0 else 2 for score in user_pop_score.values]
+        else: 
+            raise e
     #Assign group to each user based on popularity score
     user_group_df = pd.DataFrame({
         user_field: user_pop_score.index,
