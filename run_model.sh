@@ -7,7 +7,7 @@
 #git clone https://github.com/knife982000/FairRecsys
 #pip install -e ./FairRecsys/RecBole --verbose
 
-while getopts ":c:d:m:s:o:uerzqh" opt; do
+while getopts ":c:d:m:s:o:u:erzqh" opt; do
   case $opt in
     c) CONFIG_FILE="$OPTARG" ;;
     d) DATASET="$OPTARG" ;;
