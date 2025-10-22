@@ -1,11 +1,11 @@
 #!/bin/bash
 
-echo "Getting the latest version of RecBole from repository..."
-if [ -d "./FairRecsys" ]; then
-  rm -rdf ./FairRecsys
-fi
-git clone https://github.com/knife982000/FairRecsys
-pip install -e ./FairRecsys/RecBole --verbose
+#echo "Getting the latest version of RecBole from repository..."
+#if [ -d "./FairRecsys" ]; then
+#  rm -rdf ./FairRecsys
+#fi
+#git clone https://github.com/knife982000/FairRecsys
+#pip install -e ./FairRecsys/RecBole --verbose
 
 while getopts ":c:d:m:s:o:uerzqh" opt; do
   case $opt in
