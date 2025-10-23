@@ -86,6 +86,20 @@ def group_users_by_preferences(df: pd.DataFrame, groups: Union[int,List[str]] = 
         labels.loc[top_items] = 1
         item_popularity = labels
         method = 'mean'
+    elif method == 'popularity_mass':
+        # Step 1: Sort descending by frequency
+        item_popularity_sorted = item_popularity.sort_values(ascending=False).to_frame()
+
+        # Step 2: Get cutoff for top 20%
+        item_popularity_sorted['cumulative'] = item_popularity_sorted.cumsum()
+        
+        top_items = item_popularity_sorted[item_popularity_sorted['cumulative'] <= 0.2].index
+
+        # Step 3: Assign 1 to top items, 0 otherwise
+        labels = pd.Series(0, index=item_popularity.index)
+        labels.loc[top_items] = 1
+        item_popularity = labels
+        method = 'mean'
     #Assign Popularity Score to Each Interaction
     df['item_popularity'] = df[item_field].map(item_popularity)
     #Score aprox interaction

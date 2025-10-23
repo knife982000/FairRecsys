@@ -124,7 +124,7 @@ def main():
     argparser.add_argument('-c', '--confidence', type=float, required=False, default=0.99, 
                            help='De ault confidence level for statistical tests (default: 0.99)')
     argparser.add_argument('-u', '--user_agregation', type=str, required=False, default='median',
-                           choices=["median", "mean", "popularity"], 
+                           choices=["median", "mean", "popularity", "popularity_mass"], 
                            help='''Method to aggregate user popularity scores.
                            Options: "median", "mean", "popularity" (default: "median").
                            "popularity" is defined in: https://arxiv.org/abs/1907.13286
@@ -140,7 +140,7 @@ def main():
     # Initialize the configuration and logger
     config = Config(model='BPR', 
                     dataset=args.dataset,
-                    config_file_list=[args.config_file])
+                    config_file_list=[args.config_file] if args.config_file is not None else None)
     
     # Initialize the module with the configuration
     init_module(config)
