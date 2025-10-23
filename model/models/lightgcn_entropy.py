@@ -3,7 +3,7 @@ import torch
 from RecBole.recbole.model.general_recommender.lightgcn import LightGCN
 from RecBole.recbole.utils import InputType
 
-from model import BPRLoss, EntropyLoss
+from model import BPRLoss, EntropyLoss, EntropyLoss2
 from model.config_updater import update_config
 
 
@@ -63,3 +63,23 @@ class LightGCNEntropy(LightGCN):
         loss = ep_loss + self.reg_weight * reg_loss
 
         return loss
+
+
+class LightGCNEntropy2(LightGCNEntropy):
+    r"""LightGCN is a GCN-based recommender model.
+
+    LightGCN includes only the most essential component in GCN — neighborhood aggregation — for
+    collaborative filtering. Specifically, LightGCN learns user and item embeddings by linearly
+    propagating them on the user-item interaction graph, and uses the weighted sum of the embeddings
+    learned at all layers as the final embedding.
+
+    We implement the model following the original author with a pairwise training mode.
+    """
+
+    input_type = InputType.PAIRWISE
+    file_properties = "RecBole/recbole/properties/model/LightGCN.yaml"
+
+    def __init__(self, config, dataset):
+        config = update_config(self.file_properties, config)
+        super(LightGCNEntropy2, self).__init__(config, dataset)
+        self.ep_loss = EntropyLoss2(dataset, self.ITEM_ID, config["entropy_alpha"] if "entropy_alpha" in config else 1)

@@ -65,3 +65,32 @@ class EntropyLoss(nn.Module):
         boost = self.items_boost[items]
         loss = loss * boost
         return torch.sum(loss) / torch.sum(boost)
+
+
+class EntropyLoss2(nn.Module):
+
+    def __init__(self, dataset, item_id, alpha=1):
+        super(EntropyLoss2, self).__init__()
+        items_count = self._build_item_popularity(dataset, item_id)
+        boost = 1 - (torch.log1p(items_count) + 1) / (torch.log1p(torch.max(items_count)) + 1)
+        boost = boost ** alpha
+        self.register_buffer('items_boost', boost)
+        pass
+
+    def _build_item_popularity(self, dataset, item_id):
+        """Precompute item popularity based on dataset interactions."""
+        item_counts = torch.zeros(dataset.item_num, dtype=torch.float)
+
+        # Ensure item_ids is on the same device as item_counts
+        item_ids = dataset.inter_feat[item_id]
+
+        # Count occurrences of each item
+        ones = torch.ones_like(item_ids, dtype=torch.float)
+        item_counts.scatter_add_(0, item_ids, ones)
+
+        return item_counts
+
+    def forward(self, loss, items):
+        boost = self.items_boost[items]
+        loss = loss * boost
+        return torch.mean(loss)

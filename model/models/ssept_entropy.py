@@ -3,7 +3,7 @@ import torch
 from RecBole.recbole.model.transformer_reccomender.ssept import SSEPT
 from RecBole.recbole.utils import InputType
 
-from model import BPRLoss, EntropyLoss
+from model import BPRLoss, EntropyLoss, EntropyLoss2
 
 
 class SSEPTEntropy(SSEPT):
@@ -39,3 +39,13 @@ class SSEPTEntropy(SSEPT):
         loss = self.ep_loss(mf_loss, pos_items)
         
         return loss
+
+
+class SSEPTEntropy2(SSEPTEntropy):
+    r"""BPR is a basic matrix factorization model that be trained in the pairwise way."""
+
+    input_type = InputType.PAIRWISE
+
+    def __init__(self, config, dataset):
+        super(SSEPTEntropy2, self).__init__(config, dataset)
+        self.ep_loss = EntropyLoss2(dataset, self.ITEM_ID, config["entropy_alpha"] if "entropy_alpha" in config else 1)
