@@ -1,22 +1,27 @@
 import torch
 
-from RecBole.recbole.data.utils import create_dataset
+ITEM_COUNTS = None
 
-
-def build_item_popularity(config):
+def build_item_popularity(config, dataset=None):
+    global ITEM_COUNTS
+    if ITEM_COUNTS is not None:
+        return ITEM_COUNTS
+    
+    if dataset is None:
+        raise ValueError("Dataset must be provided to build item popularity.")
+    
     item_id = config["ITEM_ID_FIELD"]
-    dataset = create_dataset(config)
 
-    item_counts = torch.zeros(dataset.num(item_id), device=config["device"], dtype=torch.float)
+    ITEM_COUNTS = torch.zeros(dataset.num(item_id), device=config["device"], dtype=torch.float)
 
     # Ensure item_ids is on the same device as item_counts
-    item_ids = torch.tensor(dataset.inter_feat[item_id].values, device=config["device"])
+    item_ids = torch.tensor(dataset.inter_feat[item_id], device=config["device"])
 
     # Count occurrences of each item
     ones = torch.ones_like(item_ids, device=config["device"], dtype=torch.float)
-    item_counts.scatter_add_(0, item_ids, ones)
+    ITEM_COUNTS.scatter_add_(0, item_ids, ones)
 
-    return item_counts
+    return ITEM_COUNTS
 
 
 def get_alpha(config):
@@ -29,7 +34,7 @@ def zipf_penalty_singular(config, score, item):
 
     item_popularity = build_item_popularity(config)
 
-    zipf_penalty = get_alpha(config) * torch.log1p(item_popularity[item] + 1)
+    zipf_penalty = get_alpha(config) * torch.log1p(item_popularity[item])
     return score - zipf_penalty
 
 

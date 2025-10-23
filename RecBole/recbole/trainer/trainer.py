@@ -47,7 +47,7 @@ from recbole.utils import (
 )
 from torch.nn.parallel import DistributedDataParallel
 
-from RecboleRunner import MMRReranker, zipf_penalty_batch
+from RecboleRunner import MMRReranker, zipf_penalty_batch, build_item_popularity
 
 
 class AbstractTrainer(object):
@@ -429,8 +429,13 @@ class Trainer(AbstractTrainer):
         """
         if saved and self.start_epoch >= self.epochs:
             self._save_checkpoint(-1, verbose=verbose)
-
+            
         self.eval_collector.data_collect(train_data)
+        
+        if self.config["apply_zipf"]:
+            self.logger.info(set_color("Applying Zipf's penalty!", "yellow"))
+            build_item_popularity(self.config, train_data.dataset)
+        
         if self.config["train_neg_sample_args"].get("dynamic", False):
             train_data.get_model(self.model)
         valid_step = 0
