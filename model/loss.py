@@ -43,7 +43,7 @@ class EntropyLoss(nn.Module):
     def __init__(self, dataset, item_id, alpha=1):
         super(EntropyLoss, self).__init__()
         items_count = self._build_item_popularity(dataset, item_id)
-        boost = 1 - (torch.log1p(items_count) + 1) / (torch.log1p(torch.max(items_count)) + 1)
+        boost = 1 - torch.log(items_count + 1 / (torch.max(items_count) + 1))
         boost = boost ** alpha
         self.register_buffer('items_boost', boost)
         pass
@@ -72,7 +72,7 @@ class EntropyLoss2(nn.Module):
     def __init__(self, dataset, item_id, alpha=1):
         super(EntropyLoss2, self).__init__()
         items_count = self._build_item_popularity(dataset, item_id)
-        boost = 1 - (torch.log1p(items_count) + 1) / (torch.log1p(torch.max(items_count)) + 1)
+        boost = 1 - torch.log(items_count + 1 / (torch.max(items_count) + 1))
         boost = boost ** alpha
         self.register_buffer('items_boost', boost)
         pass
