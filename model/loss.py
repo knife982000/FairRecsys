@@ -74,6 +74,7 @@ class EntropyLoss2(nn.Module):
         items_count = self._build_item_popularity(dataset, item_id)
         boost = 1 - torch.log((items_count + 1) / (torch.max(items_count) + 1))
         boost = boost ** alpha
+        self.register_buffer('items_boost', boost)
         pass
 
     def _build_item_popularity(self, dataset, item_id):
