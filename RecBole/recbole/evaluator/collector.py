@@ -218,7 +218,7 @@ class Collector(object):
             user_ids = np.array(uniq)
             group_list = [self.user_groups.get(uid, -1) for uid in user_ids]
             group_tensor = torch.tensor(group_list, device=self.device)
-            self.data_struct.set("rec.user_group", group_tensor)
+            self.data_struct.update_tensor("rec.user_group", group_tensor)
 
     def model_collect(self, model: torch.nn.Module):
         """Collect the evaluation resource from model.
