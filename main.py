@@ -2,7 +2,7 @@ import argparse
 
 from config import methods, datasets, config_dictionary, config_file, eval_config_file
 from RecboleRunner import RecboleRunner
-
+import json
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run and evaluate RecBole models")
@@ -18,6 +18,7 @@ if __name__ == "__main__":
     parser.add_argument("-mmr", "--mmr", action="store_true", help="Use MMR for reranking")
     parser.add_argument("-fe", "--find_entropy", action="store_true", help=f"Find the optimal entropy alpha value")
     parser.add_argument("-ug", "--user_group", type=str, help="Path to user-group CSV file")
+    parser.add_argument("-c", "--config", type=str, help="Additional config in JSON format", default=None)
 
     args = parser.parse_args()
 
@@ -51,6 +52,10 @@ if __name__ == "__main__":
 
     if args.user_group:
         config_dictionary["user_group"] = args.user_group
+
+    if args.config:
+        additional_config = json.loads(args.config)
+        config_dictionary.update(additional_config)
 
     # Fixing compatibility issues
     import numpy as np
